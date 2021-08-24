@@ -11,7 +11,7 @@ output:
 knit: (function(input_file, encoding) {
   out_dir <- 'docs';
   rmarkdown::render(input_file, encoding=encoding,
-  output_file=file.path(dirname(input_file), out_dir, 'scGate.demo1.TCell_TCD8_vignette.html'))})
+  output_file=file.path(dirname(input_file), out_dir, 'TCell.vignette.html'))})
 ---
 
 
