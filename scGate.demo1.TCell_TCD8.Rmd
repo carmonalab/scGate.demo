@@ -78,12 +78,9 @@ seed <- 27182
 ```
 
 
-<<<<<<< HEAD
 ## Get human datasets 
 * We are going to analyze two recent datasets, Brief description of datasets sources and processing. 
-=======
 
->>>>>>> 4aeb0aea0cda9322522f65414260933119942d2b
 ```{r}
 do_download <- F
 
