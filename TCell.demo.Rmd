@@ -1,0 +1,279 @@
+---
+title: "Test basic functionalities of scGate on human data: Myeloid antigen presenting cells" 
+author: "M. Andreatta, A. Berenstein and S. Carmona"
+date: "19/08/2021"
+output:
+  rmdformats::readthedown:
+    self-contained: true
+    highlight: haddock
+    thumbnails: false
+    css: styles.css
+knit: (function(input_file, encoding) {
+  out_dir <- 'docs';
+  rmarkdown::render(input_file, encoding=encoding,
+  output_file=file.path(dirname(input_file), out_dir, 'scGate.demo1.TCell_TCD8_vignette.html'))})
+---
+
+
+
+## Background
+**scGate** is an open source tool designed for gating specific and uncontaminated cell types in a scRNAseq experiment. We aim to gate cell subtypes at high precision/PPV (i.e achieving high cell type purity) and we don’t care about some loss of true cells (i.e. sensitivity > 90% is ideal). We aim at a reliable tool to purify individual cell types from scRNA-seq data from complex samples (e.g. whole tissue, whole tumor) to enable i) downstream cell type-specific analysis (e.g. reference-atlas projection) and ii) cross-study comparisons/meta-analysis of cell types.
+
+### Usage
+The simplest usage mode allows users an automatic gating process of cell subsets based on pre-computed models that relies on specific cell signatures of interest.  The tool also allows an advanced mode in which users can create their own models based on personalized signatures,  as well as new training datasets. 
+
+## This demo
+Here, we are going to show the basic functionality of *scGate* package for filtering-out specific cell subsets in different scRNAseq datasets with pre-computed models. We will show how to extract **T cells** and also **TCD8 cells**  subsets  from two recent human single cell datasets: [Jerby-Arnon.2018](https://pubmed.ncbi.nlm.nih.gov/30388455/),  [Yost.2019](https://www.nature.com/articles/s41591-019-0522-3) 
+
+
+## R Environment
+
+Using Renv
+```{r}
+if (!requireNamespace("renv")) install.packages("renv")
+renv::activate()
+renv::restore()
+library(dplyr)
+library(ggplot2)
+```
+
+Or alternatively, manually installing scGate from GitHub
+```{r, eval=F, message=F, warning=F, results=F}
+if (!requireNamespace("remotes")) install.packages("remotes")
+remotes::install_github("carmonalab/UCell")
+remotes::install_github("carmonalab/scGate")
+```
+
+
+Markdown setup
+```{r setup, echo=FALSE, message=F, warning=F, results=F}
+# Notice that the next packages are already installed in the provided renv.lock file. If you decide do no activate the environment, you must to install these packages manually. 
+library(knitr)
+library(rmdformats)
+library(formatR)
+
+
+## Global options
+options(max.print="75")
+opts_chunk$set(echo=TRUE,
+	             cache=TRUE,
+               cache.lazy=FALSE,
+               prompt=FALSE,
+               tidy=TRUE,
+               comment=NA,
+               message=FALSE,
+               warning=FALSE,
+               dev='png')
+opts_knit$set(width=75)
+
+```
+ 
+## Load the package
+
+```{r message=F, warning=F, results=F}
+library(scGate)
+seed <- 27182
+```
+
+
+## Get human datasets 
+* We are going to analyze two recent datasets, Brief description of datasets sources and processing. 
+
+```{r}
+
+do_download <- F
+
+ddir <- "input"
+if (!file.exists(ddir)) {
+    dir.create(ddir)
+}
+
+if (do_download) {
+  #JerbyArnon - melanoma (GSE115978)
+  dataUrl <- "https://drive.switch.ch/index.php/s/GOpKFDP1wtVR3x8/download"
+  download.file(dataUrl, paste0(ddir, "/human_Mel_JerbyArnon.rds"))
+
+  #Yost et al. - basal cell carcinoma (GSE123813)
+  dataUrl <- "https://drive.switch.ch/index.php/s/dEfDpaWaFeyoAD3/download"
+  download.file(dataUrl, paste0(ddir, "/Yost.pretreatment.all.rds"))
+}
+```
+
+## Basic Seurat unsupervised analyis 
+Load datasets and permorm dimensionality reduction and unsupervised analysis
+```{r}
+
+# Load data into a list
+# Unfiy author annotations in a new column "cell_type"
+# Basic Preprocessing
+if(!file.exists("input/human.sets.dimred.rds")){
+  dataset.list <- list()
+  
+  a <- readRDS(paste0(ddir,"/human_Mel_JerbyArnon.rds"))
+  a$Source <- "Jerby"
+  a <- AddMetaData(a, a$cell.types, col.name = "cell_type")
+  a <- a%>%subset(cell_type != "?") ## Fiter out 307 unannotated cells
+  dataset.list[["Jerby"]] <- a
+
+
+  a <- readRDS(paste0(ddir,"/Yost.pretreatment.all.rds"))
+  a$Source <- "Yost"
+  a <- AddMetaData(a, a$cluster, col.name = "cell_type")
+  dataset.list[["Yost"]] <- a
+  
+  ## Preprocess 
+  # Dimensionality reduction and unsup. analysis
+  set.seed(seed)
+  
+  for (set in names(dataset.list)) {
+    q <- dataset.list[[set]]
+    
+    q <- NormalizeData(q, verbose = FALSE)
+    q <- FindVariableFeatures(q, selection.method = "vst", nfeatures = 1000, verbose = FALSE)
+    
+    q <- ScaleData(q)
+    q <- RunPCA(q, features = q@assays$RNA@var.features, ndims.print = 1:5, nfeatures.print = 5, verbose = FALSE) 
+    q <- RunUMAP(q, reduction = "pca", dims = 1:20, seed.use= seed, verbose = FALSE)
+    
+  
+    dataset.list[[set]] <- q
+  }
+  
+  saveRDS(dataset.list,"input/human.sets.dimred.rds")
+}else{
+  dataset.list <- readRDS("input/human.sets.dimred.rds")
+}
+```
+
+
+Visualize the authors' annotations.
+```{r,  message=F, fig.width= 12, fig.height=7}
+
+dimplot.Jerby <- DimPlot(object = dataset.list$Jerby, reduction = "umap", group.by = "cell_type", label = TRUE, label.size = 3, repel = TRUE) + ggtitle("") + labs(subtitle = "Cell Type") + theme(plot.subtitle = element_text(hjust = 0.5)) +theme(legend.position="bottom") + theme(aspect.ratio = 1) +theme(legend.text = element_text(size=7))
+
+dimplot.Yost <- DimPlot(object = dataset.list$Yost, reduction = "umap", group.by = "cell_type", label = TRUE, label.size = 3, repel = TRUE) + ggtitle("") + labs(subtitle = "Cell Type") + theme(plot.subtitle = element_text(hjust = 0.5)) +theme(legend.position="bottom") + theme(aspect.ratio = 1) + theme(legend.text = element_text(size=7))
+
+
+(dimplot.Jerby + ggtitle("Jerby et.al.")) + (dimplot.Yost + ggtitle("Yost et.al.")) 
+```
+
+## Apply scGate to filter Tcells. 
+* for each dataset we will apply a pre-trained model for filtering Tcells. 
+The only required inputs for scGate are 
+1) the single cell dataset to filtered out in seurat format
+2) a scGate model trained to isolate an specific cell subset, namely T.cells. 
+The main expected output is the same seurat object, plus an extra metadata feature named "is.pure". This metadata column will allow us to isolate the desired cell subset. 
+
+```{r, message=F}
+if(!file.exists('./input/tcell.human.sets.rds')){                           ### ELIMINAR 
+  gated.Tcell.Jerby <- scGate(data = dataset.list$Jerby, gating.model = scGate_DB$human$Tcell)  
+  gated.Tcell.Yost <- scGate(data = dataset.list$Yost, gating.model = scGate_DB$human$Tcell)  
+  tcell.gating <- list(Jerby = gated.Tcell.Jerby, Yost = gated.Tcell.Yost)  ### ELIMINAR
+  saveRDS(gated.Tcell,'./input/tcell.human.sets.rds')                       ### ELIMINAR
+}else{                                                                      ### ELIMINAR
+  tcell.gating <- readRDS('./input/tcell.human.sets.rds')                   ### ELIMINAR
+  gated.Tcell.Jerby <- tcell.gating$Jerby                                   ### ELIMINAR
+  gated.Tcell.Yost <- tcell.gating$Yost                                     ### ELIMINAR
+}                                                                           ### ELIMINAR
+
+```
+
+How many Tcells were fund?
+```{r}
+gated.Tcell.Jerby$is.pure%>%table()
+gated.Tcell.Yost$is.pure%>%table()
+
+```
+
+
+We can use the **is.pure** feature for visualizing  or isolation purposes 
+
+```{r,fig.width= 10, fig.height=10}
+dimplot.tcell.Jerby <- DimPlot(object = gated.Tcell.Jerby, reduction = "umap", group.by = "is.pure", label = TRUE, label.size = 3, repel = TRUE) + ggtitle("")  + theme(aspect.ratio = 1)
+dimplot.tcell.Yost <- DimPlot(object = gated.Tcell.Yost, reduction = "umap", group.by = "is.pure", label = TRUE, label.size = 3, repel = TRUE) + ggtitle("")  + theme(aspect.ratio = 1)
+
+## Show plots
+layout <- "
+AB
+CD"
+
+patchwork::wrap_plots(A = dimplot.Jerby + ggtitle("Jerby et.al.") + theme(legend.text = element_text(size=7)) ,
+                      B = dimplot.Yost + ggtitle("Yost et.al.") + theme(legend.text = element_text(size=7)),  
+                      C = dimplot.tcell.Jerby ,
+                      D= dimplot.tcell.Yost, design = layout)
+
+```
+
+
+We also quantify the amount of cells filtered in authors' subsets
+
+```{r, fig.height= 5, fig.width=10}
+
+## First
+# Jerby
+df <- gated.Tcell.Jerby@meta.data
+#reorder labes for visualization purposes. 
+sorted.levels <- gated.Tcell.Jerby@meta.data%>%group_by(cell_type)%>%dplyr::summarise(Isolated = sum(is.pure =='Pure'))%>%arrange(desc(Isolated)) # extract order acording to Nro Pure detected cells
+df$cell_type <- factor(df$cell_type, level = sorted.levels$cell_type)  
+
+jerby.bp <-ggplot(df, aes(x = cell_type,  fill = is.pure)) + geom_bar() + theme_bw() + theme(aspect.ratio = 1) + theme(axis.text.x = element_text(angle = 60, vjust = 0.5, hjust=0.5)) + ggtitle("Jerby et.al.") + xlab("author's criteria")
+
+# Yost
+df <- gated.Tcell.Yost@meta.data
+#reorder labes for visualization purposes.
+sorted.levels <- df%>%group_by(cell_type)%>%dplyr::summarise(Isolated = sum(is.pure =='Pure'))%>%arrange(desc(Isolated))  # extract order acording to Nro Pure detected cells
+df$cell_type <- factor(df$cell_type, level = sorted.levels$cell_type) 
+
+yost.bp <- ggplot(df, aes(x = cell_type,  fill = is.pure)) + geom_bar() + theme_bw() + theme(aspect.ratio = 1) + theme(axis.text.x = element_text(angle = 60, vjust = 0.5, hjust=0.5)) + ggtitle("Yost et.al.") + xlab("author's criteria")
+
+jerby.bp + yost.bp
+```
+
+
+Finally, you can isolate gated cells for downstream analysis
+```{r,fig.width= 10,fig.height=5}
+Jerby.tcells <- tcell.gating$Jerby%>%subset(is.pure == "Pure")
+Yost.tcells <- tcell.gating$Yost%>%subset(is.pure == "Pure")
+
+jp <- DimPlot(Jerby.tcells, group.by = "cell_type",label = TRUE, label.size = 3, repel = TRUE) + ggtitle("Jerby et.al.") + theme(aspect.ratio = 1) +theme(legend.position="bottom") + theme(legend.text = element_text(size=7)) 
+
+yp <- DimPlot(Yost.tcells, group.by = "cell_type",label = TRUE, label.size = 3, repel = TRUE) + ggtitle("Yost et.al.")  + theme(aspect.ratio = 1) +theme(legend.position="bottom") + theme(legend.text = element_text(size=7)) 
+
+jp + yp
+```
+
+
+## Advanced features
+
+### sc.Gate.annotation field
+In addition to its main **is.pure** feature, scGate offers two additional outputs for downstream analysis and exploration. 
+First, scGate also allows display the most probable class of the **impure** cells. It can easily visualized by using **sc.Gate.annotation field** also added into meta.data object. 
+Please, notice that this IS NOT the main output of scGate tool and that this annotation is not error free. This must be used only as a complementary analysis tool and never for isolation/filtering purposes. 
+
+* You can found it easily:
+```{r, fig.width= 10, fig.height= 5}
+p1 <- DimPlot(gated.Tcell.Jerby,group.by = "scGate.annotation",label = TRUE, label.size = 3, repel = TRUE ) + NoLegend() + ggtitle("")  + labs(subtitle = "Jerby et.al.") +theme(aspect.ratio = 1) +  theme(legend.text = element_text(size=7)) 
+
+p2 <- DimPlot(gated.Tcell.Yost,group.by = "scGate.annotation",label = TRUE, label.size = 3, repel = TRUE) + NoLegend() + ggtitle("") + labs(subtitle =  "Yost et.al.") + theme(aspect.ratio = 1) +  theme(legend.text = element_text(size=7)) 
+
+p1 + p2
+```
+### z-score signatures
+Another useful feature of scGate is that it reserves the considered z-scores that have been used for filtering purposes. By default scGate uses Ucell z-scores and reserve them in meta.data object.  
+These z-scores can be easily located and visualized:
+```{r}
+mtd <- gated.Tcell.Yost@meta.data
+zscore_cols <-  colnames(mtd)%>%grep('_Zscore',.,value=T)
+head(mtd[,zscore_cols])
+```
+And you can visualize it by taking adavantage of FeaturePlot Seurat function:
+```{r,fig.width=10,fig.height=9}
+FeaturePlot(gated.Tcell.Yost, features = c("Plasma.cells_Zscore","pDC_Zscore","NK_Zscore","B.cell_Zscore"))
+```
+
+
+## Further reading
+The code and the package are available at the *scGate* [GitHub repository](https://github.com/carmonalab/scGate)
+
+
+
