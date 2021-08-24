@@ -15,16 +15,43 @@ knit: (function(input_file, encoding) {
 ---
 
 
+
+## Background
+**scGate** is an open source tool designed for gating specific and uncontaminated cell types in a scRNAseq experiment. We aim to gate cell subtypes at high precision/PPV (i.e achieving high cell type purity) and we don’t care about some loss of true cells (i.e. sensitivity > 90% is ideal). We aim at a reliable tool to purify individual cell types from scRNA-seq data from complex samples (e.g. whole tissue, whole tumor) to enable i) downstream cell type-specific analysis (e.g. reference-atlas projection) and ii) cross-study comparisons/meta-analysis of cell types.
+
+### Usage
+The simplest usage mode allows users an automatic gating process of cell subsets based on pre-computed models that relies on specific cell signatures of interest.  The tool also allows an advanced mode in which users can create their own models based on personalized signatures,  as well as new training datasets. 
+
+## This demo
+Here, we are going to show the basic functionality of *scGate* package for filtering-out specific cell subsets in different scRNAseq datasets with pre-computed models. We will show how to extract **T cells** and also **TCD8 cells**  subsets  from two recent human single cell datasets: [Jerby-Arnon.2018](https://pubmed.ncbi.nlm.nih.gov/30388455/),  [Yost.2019](https://www.nature.com/articles/s41591-019-0522-3) 
+
+
+## R Environment
+
+Using Renv
+```{r}
+if (!requireNamespace("renv")) install.packages("renv")
+renv::activate()
+renv::restore()
+library(dplyr)
+library(ggplot2)
+```
+
+Or alternatively, manually installing scGate from GitHub
+```{r, eval=F, message=F, warning=F, results=F}
+if (!requireNamespace("remotes")) install.packages("remotes")
+library(remotes)
+remotes::install_github("carmonalab/UCell")
+remotes::install_github("carmonalab/scGate")
+```
+
+
+Markdown setup
 ```{r setup, echo=FALSE, message=F, warning=F, results=F}
-install.packages("rmdformats")
-install.packages("knitr")
-install.packages("formatR")
-#Template markdown setup
 library(knitr)
 library(rmdformats)
 library(formatR)
 
-#renv::restore()
 
 ## Global options
 options(max.print="75")
@@ -43,46 +70,9 @@ opts_knit$set(width=75)
 
 
  
-## Background
-**scGate** is an open source tool designed for gating specific and uncontaminated cell types in a scRNAseq experiment. We aim to gate cell subtypes at high precision/PPV (i.e achieving high cell type purity) and we don’t care about some loss of true cells (i.e. sensitivity > 90% is ideal). We aim at a reliable tool to purify individual cell types from scRNA-seq data from complex samples (e.g. whole tissue, whole tumor) to enable i) downstream cell type-specific analysis (e.g. reference-atlas projection) and ii) cross-study comparisons/meta-analysis of cell types.
-
-
-### Usage
-The simplest usage mode allows users an automatic gating process of cell subsets based on pre-computed models that relies on specific cell signatures of interest.  The tool also allows an advanced mode in which users can create their own models based on personalized signatures,  as well as new training datasets. 
-
-## This demo
-Here, we are going to show the basic functionality of *scGate* package for filtering-out specific cell subsets in different scRNAseq datasets with pre-computed models. We will show how to extract **T cells** and also **TCD8 cells**  subsets  from two recent human single cell datasets: [Jerby-Arnon.2018](https://pubmed.ncbi.nlm.nih.gov/30388455/),  [Yost.2019](https://www.nature.com/articles/s41591-019-0522-3) 
-
-
-```{r, results=F}
-#The ultimatum goal of **scGate** is to allow an automatic gating process that extract "pure" cell subsets matching with a pre-computed model, based on specific cell signatures of interest.
-```
-
-
-## R Environment
-Before starting, We strongly recommend to pull the repository and then run the code 
-```{bash}
-#git clone https://github.com/carmonalab/scGate.demo
-#cd scGate.demo
-```
-
-
-```{r}
-if (!requireNamespace("renv")) install.packages("renv")
-renv::activate()
-renv::restore()
-library(dplyr)
-library(ggplot2)
-```
-
-
-## Installation
+## Load the package
 
 ```{r message=F, warning=F, results=F}
-install.packages("remotes")
-remotes::install_github("carmonalab/UCell")
-remotes::install_github("carmonalab/scGate")
-
 library(scGate)
 seed <- 27182
 ```
@@ -90,8 +80,9 @@ seed <- 27182
 
 # Get human datasets 
 * For a detailed description of filtering and basic preprocessing of these datasets see the [Jerby_York_Li_preprocessing.html](url_path_to_notebook).
+
 ```{r}
-do_download <- FALSE
+do_download <- F
 
 ddir <- "input"
 if (!file.exists(ddir)) {
