@@ -1,5 +1,5 @@
 ---
-title: "Test basic functionalities of scGate on human data: Myeloid antigen presenting cells" 
+title: "Test basic functionalities of scGate on human data: isolating T cells" 
 author: "M. Andreatta, A. Berenstein and S. Carmona"
 date: "19/08/2021"
 output:
@@ -29,25 +29,25 @@ Here, we are going to show the basic functionality of *scGate* package for filte
 ## R Environment
 
 Using Renv
-```{r}
+```{r message=F, warning=F}
 if (!requireNamespace("renv")) install.packages("renv")
 renv::activate()
 renv::restore()
 library(dplyr)
 library(ggplot2)
+library(scGate)
 ```
 
 Or alternatively, manually installing scGate from GitHub
-```{r, eval=F, message=F, warning=F, results=F}
+```{r, eval=F, message=F, warning=F}
 if (!requireNamespace("remotes")) install.packages("remotes")
 remotes::install_github("carmonalab/UCell")
 remotes::install_github("carmonalab/scGate")
+library(scGate)
 ```
 
 
-Markdown setup
 ```{r setup, echo=FALSE, message=F, warning=F, results=F}
-# Notice that the next packages are already installed in the provided renv.lock file. If you decide do no activate the environment, you must to install these packages manually. 
 library(knitr)
 library(rmdformats)
 library(formatR)
@@ -68,19 +68,12 @@ opts_knit$set(width=75)
 
 ```
  
-## Load the package
-
-```{r message=F, warning=F, results=F}
-library(scGate)
-seed <- 27182
-```
 
 
 ## Get human datasets 
 * We are going to analyze two recent datasets, Brief description of datasets sources and processing. 
 
 ```{r}
-
 do_download <- F
 
 ddir <- "input"
@@ -100,12 +93,15 @@ if (do_download) {
 ```
 
 ## Basic Seurat unsupervised analyis 
-Load datasets and permorm dimensionality reduction and unsupervised analysis
+Load datasets and permorm dimensionality reduction and unsupervised analysis.
 ```{r}
+# In this chunck we will 
+# a) Load data into a list
+# b) Unfiy author annotations in a new column "cell_type"
+# c) do some basic data preprocessing
 
-# Load data into a list
-# Unfiy author annotations in a new column "cell_type"
-# Basic Preprocessing
+seed <- 27182  #pseudo random seed to be used
+
 if(!file.exists("input/human.sets.dimred.rds")){
   dataset.list <- list()
   
@@ -157,14 +153,21 @@ dimplot.Yost <- DimPlot(object = dataset.list$Yost, reduction = "umap", group.by
 (dimplot.Jerby + ggtitle("Jerby et.al.")) + (dimplot.Yost + ggtitle("Yost et.al.")) 
 ```
 
-## Apply scGate to filter Tcells. 
+## Apply scGate to filter T cells. 
 * for each dataset we will apply a pre-trained model for filtering Tcells. 
 The only required inputs for scGate are 
 1) the single cell dataset to filtered out in seurat format
 2) a scGate model trained to isolate an specific cell subset, namely T.cells. 
 The main expected output is the same seurat object, plus an extra metadata feature named "is.pure". This metadata column will allow us to isolate the desired cell subset. 
 
-```{r, message=F}
+
+```{r,message=F,eval=F}
+gated.Tcell.Jerby <- scGate(data = dataset.list$Jerby, gating.model = scGate_DB$human$Tcell)  
+gated.Tcell.Yost <- scGate(data = dataset.list$Yost, gating.model = scGate_DB$human$Tcell)  
+
+```
+
+```{r, message=F,eval=F,results=F}
 if(!file.exists('./input/tcell.human.sets.rds')){                           ### ELIMINAR 
   gated.Tcell.Jerby <- scGate(data = dataset.list$Jerby, gating.model = scGate_DB$human$Tcell)  
   gated.Tcell.Yost <- scGate(data = dataset.list$Yost, gating.model = scGate_DB$human$Tcell)  
