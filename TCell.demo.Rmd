@@ -23,7 +23,7 @@ knit: (function(input_file, encoding) {
 The simplest usage mode allows users an automatic gating process of cell subsets based on pre-computed models that relies on specific cell signatures of interest.  The tool also allows an advanced mode in which users can create their own models based on personalized signatures,  as well as new training datasets. 
 
 ## This demo
-Here, we are going to show the basic functionality of *scGate* package for filtering-out specific cell subsets in different scRNAseq datasets with pre-computed models. We will show how to extract **T cells** and also **TCD8 cells**  subsets  from two recent human single cell datasets: [Jerby-Arnon.2018](https://pubmed.ncbi.nlm.nih.gov/30388455/),  [Yost.2019](https://www.nature.com/articles/s41591-019-0522-3) 
+Here, we are going to show the basic functionality of *scGate* package for filtering-out specific cell subsets in different scRNAseq datasets with pre-computed models. We will show how to extract **T cells** subsets  from two recent human single cell datasets: [Jerby-Arnon.2018](https://pubmed.ncbi.nlm.nih.gov/30388455/),  [Yost.2019](https://www.nature.com/articles/s41591-019-0522-3) 
 
 
 ## R Environment
