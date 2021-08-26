@@ -36,6 +36,8 @@ renv::restore()
 library(dplyr)
 library(ggplot2)
 library(scGate)
+library(patchwork)
+
 ```
 
 Or alternatively, manually installing scGate from GitHub
@@ -66,6 +68,8 @@ opts_chunk$set(echo=TRUE,
                dev='png')
 opts_knit$set(width=75)
 
+## figure output path 
+opath <- "~/Dropbox/CSI/PAPERS/scGate/Figures"
 ```
  
 
@@ -144,13 +148,12 @@ if(!file.exists("input/human.sets.dimred.rds")){
 
 Visualize the authors' annotations.
 ```{r,  message=F, fig.width= 12, fig.height=7}
-
 dimplot.Jerby <- DimPlot(object = dataset.list$Jerby, reduction = "umap", group.by = "cell_type", label = TRUE, label.size = 3, repel = TRUE) + ggtitle("") + labs(subtitle = "Cell Type") + theme(plot.subtitle = element_text(hjust = 0.5)) +theme(legend.position="bottom") + theme(aspect.ratio = 1) +theme(legend.text = element_text(size=7))
 
 dimplot.Yost <- DimPlot(object = dataset.list$Yost, reduction = "umap", group.by = "cell_type", label = TRUE, label.size = 3, repel = TRUE) + ggtitle("") + labs(subtitle = "Cell Type") + theme(plot.subtitle = element_text(hjust = 0.5)) +theme(legend.position="bottom") + theme(aspect.ratio = 1) + theme(legend.text = element_text(size=7))
 
 
-(dimplot.Jerby + ggtitle("Jerby et.al.")) + (dimplot.Yost + ggtitle("Yost et.al.")) 
+(dimplot.Jerby + ggtitle("Jerby et.al.")) + (dimplot.Yost + ggtitle("Yost et.al."))
 ```
 
 ## Apply scGate to filter T cells. 
@@ -162,18 +165,12 @@ The required inputs for scGate are:
 
 scGate returns the same input Seurat object with an extra metadata feature named "is.pure" with two possible values: "Pure" or "Impure".
 
-```{r,message=F,eval=F}
-gated.Tcell.Jerby <- scGate(data = dataset.list$Jerby, gating.model = scGate_DB$human$Tcell)  
-gated.Tcell.Yost <- scGate(data = dataset.list$Yost, gating.model = scGate_DB$human$Tcell)  
-
-```
-
-```{r, message=F,eval=F,results=F,echo =F}
+```{r, message=F,eval=T,results=F,echo =F}
 if(!file.exists('./input/tcell.human.sets.rds')){                           ### ELIMINAR 
   gated.Tcell.Jerby <- scGate(data = dataset.list$Jerby, gating.model = scGate_DB$human$Tcell)  
   gated.Tcell.Yost <- scGate(data = dataset.list$Yost, gating.model = scGate_DB$human$Tcell)  
   tcell.gating <- list(Jerby = gated.Tcell.Jerby, Yost = gated.Tcell.Yost)  ### ELIMINAR
-  saveRDS(gated.Tcell,'./input/tcell.human.sets.rds')                       ### ELIMINAR
+  saveRDS(tcell.gating,'./input/tcell.human.sets.rds')                       ### ELIMINAR
 }else{                                                                      ### ELIMINAR
   tcell.gating <- readRDS('./input/tcell.human.sets.rds')                   ### ELIMINAR
   gated.Tcell.Jerby <- tcell.gating$Jerby                                   ### ELIMINAR
@@ -181,6 +178,14 @@ if(!file.exists('./input/tcell.human.sets.rds')){                           ### 
 }                                                                           ### ELIMINAR
 
 ```
+
+
+```{r,message=F,eval=F}
+gated.Tcell.Jerby <- scGate(data = dataset.list$Jerby, gating.model = scGate_DB$human$Tcell)  
+gated.Tcell.Yost <- scGate(data = dataset.list$Yost, gating.model = scGate_DB$human$Tcell)  
+
+```
+
 
 How many T cells were fund?
 ```{r}
@@ -201,12 +206,22 @@ AB
 CD"
 
 ## show plots
-patchwork::wrap_plots(A = dimplot.Jerby + ggtitle("Jerby et.al.") + theme(legend.text = element_text(size=7)) ,
+plt <- patchwork::wrap_plots(A = dimplot.Jerby + ggtitle("Jerby et.al.") + theme(legend.text = element_text(size=7)) ,
                       B = dimplot.Yost + ggtitle("Yost et.al.") + theme(legend.text = element_text(size=7)),  
                       C = dimplot.tcell.Jerby ,
-                      D= dimplot.tcell.Yost, design = layout)
-
+                      D= dimplot.tcell.Yost, design = layout) + plot_annotation(tag_levels = 'A')
+plt
 ```
+
+
+```{r,results=F,warning=F,echo = F,eval=F}
+fname = file.path(opath,"dimplot_tcell_jerby_yost.pdf")
+ggsave(filename = fname, plot = plt, width = 10, height = 10)
+
+fname = file.path(opath,"dimplot_tcell_jerby_yost.png")
+ggsave(filename = fname, plot = plt, width = 10, height = 10)
+```
+
 
 
 We also can quantify the amount of cells filtered in authors' subsets
@@ -234,6 +249,15 @@ yost.bp <- ggplot(df, aes(x = cell_type,  fill = is.pure)) + geom_bar() + theme_
 jerby.bp + yost.bp
 ```
 
+```{r,results=F,warning=F,echo = F,eval=F}
+plt <- (jerby.bp + yost.bp)  + plot_annotation(tag_levels = 'A')
+fname = file.path(opath,"barplot_Tcell_Jerby_Yost.pdf")
+ggsave(filename = fname, plot = plt, width = 10, height = 5)
+
+fname = file.path(opath,"barplot_Tcell_Jerby_Yost.png")
+ggsave(filename = fname, plot = plt, width = 10, height = 5)
+```
+
 
 Finally, you can isolate gated cells for downstream analysis
 ```{r}
@@ -254,6 +278,15 @@ yp <- DimPlot(Yost.tcells, group.by = "cell_type",label = TRUE, label.size = 3, 
 
 # Show plots
 jp + yp
+```
+
+```{r,results=F,warning=F,echo = F,eval=F}
+plt <- (jp + yp) + plot_annotation(tag_levels = 'A')
+fname = file.path(opath,"isolated_dimplot_Tcell_Jerby_Yost.pdf")
+ggsave(filename = fname, plot = plt, width = 10, height = 5)
+
+fname = file.path(opath,"isolated_dimplot_Tcell_Jerby_Yost.png")
+ggsave(filename = fname, plot = plt, width = 10, height = 5)
 ```
 
 
@@ -277,6 +310,16 @@ p2 <- DimPlot(gated.Tcell.Yost,group.by = "scGate.annotation",label = TRUE, labe
 p1 + p2
 ```
 
+```{r,results=F,warning=F,echo = F,eval=F}
+plt <- (p1 + p2) + plot_annotation(tag_levels = 'A')
+fname = file.path(opath,"scGate.annotation_Tcell_Jerby_Yost.pdf")
+ggsave(filename = fname, plot = plt, width = 10, height = 5)
+
+fname = file.path(opath,"scGate.annotation_Tcell_Jerby_Yost.png")
+ggsave(filename = fname, plot = plt, width = 10, height = 5)
+```
+
+
 ## z-score signatures
 Another useful feature of scGate is that it reserves the considered z-scores that have been used for filtering purposes. By default scGate uses Ucell z-scores and reserve them in meta.data object.  
 These z-scores can be easily located and visualized:
@@ -291,7 +334,17 @@ zscore_cols %>% tail() ## display some signature names
 
 And you can visualize it by taking adavantage of FeaturePlot Seurat function:
 ```{r,fig.width=10,fig.height=9}
-FeaturePlot(gated.Tcell.Yost, features = c("Plasma.cells_Zscore","pDC_Zscore","NK_Zscore","B.cell_Zscore"))
+plot.signatures <- FeaturePlot(gated.Tcell.Yost, features = c("Plasma.cells_Zscore","pDC_Zscore","NK_Zscore","B.cell_Zscore"))
+plot.signatures
+```
+
+```{r,results=F,warning=F,echo = F,eval=F}
+plt <- plot.signatures + plot_annotation(tag_levels = 'A')
+fname = file.path(opath,"signatures_Tcell_Jerby_Yost.pdf")
+ggsave(filename = fname, plot = plt, width = 10, height = 10)
+
+fname = file.path(opath,"signatures_Tcell_Jerby_Yost.png")
+ggsave(filename = fname, plot = plt, width = 10, height = 10)
 ```
 
 
