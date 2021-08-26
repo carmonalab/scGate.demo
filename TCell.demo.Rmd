@@ -291,10 +291,10 @@ ggsave(filename = fname, plot = plt, width = 10, height = 5)
 
 
 # Advanced features
-In addition to its main **is.pure** feature, scGate offers two additional outputs for downstream analysis and exploration: **sc.Gate.annotation field** and **zscore signatures**. 
+In addition to the main **is.pure** feature, scGate offers two additional outputs for downstream analysis and exploration: **sc.Gate.annotation** field and **zscore signatures**. 
 
 ## sc.Gate.annotation field
-First, scGate also allows display the most probable class of the **impure** cells. It can easily visualized by using **sc.Gate.annotation** field, also available into the meta.data of the output. 
+First, scGate allows to display the most probable class of the **impure** cells. This can easily visualized by using **sc.Gate.annotation** field, also available into the meta.data of the output. 
 
 Please, notice that this **IS NOT** the main output of scGate tool and that *this annotation is not error free*. This must be used only as a *complementary analysis tool* and *never for isolation/filtering purposes*. 
 
@@ -321,7 +321,7 @@ ggsave(filename = fname, plot = plt, width = 10, height = 5)
 
 
 ## z-score signatures
-Another useful feature of scGate is that it reserves the considered z-scores that have been used for filtering purposes. By default scGate uses Ucell z-scores and reserve them in meta.data object.  
+Another useful feature of scGate is that it reserves the considered z-scores that have been used for filtering purposes. By default scGate uses [Ucell](https://github.com/carmonalab/UCell) z-scores and reserve them in meta.data object.  
 These z-scores can be easily located and visualized:
 ```{r}
 mtd <- gated.Tcell.Yost@meta.data
@@ -348,7 +348,7 @@ ggsave(filename = fname, plot = plt, width = 10, height = 10)
 ```
 
 
-## Further reading
+# Further reading
 The code and the package are available at the *scGate* [GitHub repository](https://github.com/carmonalab/scGate)
 
 
