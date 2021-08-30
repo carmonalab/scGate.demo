@@ -19,19 +19,17 @@ knit: (function(input_file, encoding) {
 ## Background
 **scGate** is an open source tool designed for gating specific and uncontaminated cell types in a scRNAseq experiment. We aim to gate cell subtypes at high precision/PPV (i.e achieving high cell type purity) and we don’t care about some loss of true cells (i.e. sensitivity > 90% is ideal). We aim at a reliable tool to purify individual cell types from scRNA-seq data from complex samples (e.g. whole tissue, whole tumor) to enable i) downstream cell type-specific analysis (e.g. reference-atlas projection) and ii) cross-study comparisons/meta-analysis of cell types.
 
-## Usage
-The simplest usage mode allows users an automatic gating process of cell subsets based on pre-computed models that relies on specific cell signatures of interest.  The tool also allows an advanced mode in which users can create their own models based on personalized signatures,  as well as new training datasets. 
-
-# This demo
-In a [previous vignette](path_to_TCell.demo.html) we show the most basic usage of scGate tool, please visit that vignette previous to read the present one. Here, we are going to show how to take advantage of *scGate* package for filtering-out more specific cell subsets by taking advantage of multilayer models. We will show how to extract **TCD8 cells** subsets  from two recent human single cell datasets: [Jerby-Arnon.2018](https://pubmed.ncbi.nlm.nih.gov/30388455/),  [Yost.2019](https://www.nature.com/articles/s41591-019-0522-3) 
-
-Notice that the applied T cell model used in this [previous vignette](path_to_TCell.demo.html) works filtering cells in only one step. This means that the model filter T cells from other cell types, excluding at the same time contaminants like doublets, triplets etc or other cell types by analyzing the match/mismatch with only a certain set of signatures (provided by the model). 
-When a user is interested in more specific cell types, namely gating TCD8 cells, it is strongly recommended to do the job in an iterative manner. Keeping this into account, scGate tool enables users to build (and use) multi-layer models, like the TCD8 model pre-computed model available in scGate_DB. In the first layer, this model gates all pure T cells, and in the second layer the model applies specific TCD8 signatures to pick out these cells in a fine-grained way (i.e. differentiating that cells from TCD4 or NK cells).
-
 ## Multilayer scGate models
 A multilayer scGate model could be thought as a logical (AND) concatenation of simple scGate models. The rational behind this, is to mimic the gating process that take place in flow cytometry assays. In those assays, users usually apply some criteria for a first broad gating step, extracting some desidered cellular type, and then apply another new criteria over the output of the first process to refine the search and isolation of a more specific cell type of interest. 
 
 In the context of scGate, this translates into an R list of named scGate models that must be passed to *gating.model* parameter of **scGate**   function. Please, notice that the order of the objects in the list matters, and it must be from coarse-grained gating models to finer ones. As an example, we will apply the pre-trained two layered model of TCD8 cells
+
+# This demo
+In a [previous vignette](path_to_TCell.demo.html) we show the most basic usage of scGate tool (single layer). The reader may refer to these vignettes prior to reading this demon. Here, we are going to show how to take advantage of *scGate* package for filtering-out specific cell subsets by taking advantage of multilayer models. As a case of study we will show how to extract **TCD8 cell** subsets  from two recent human single cell datasets: [Jerby-Arnon.2018](https://pubmed.ncbi.nlm.nih.gov/30388455/),  [Yost.2019](https://www.nature.com/articles/s41591-019-0522-3) 
+
+Notice that the applied T cell model used in this [previous vignette](path_to_TCell.demo.html) works filtering cells in only one step. This means that the model filter T cells from other cell types, excluding at the same time contaminants like doublets, triplets or other cell types by analyzing the match/mismatch with only one set of signatures (provided by the model). 
+When a user is interested in more specific cell types, namely gating TCD8 cells, it is strongly recommended to do the job in an iterative manner. Keeping this into account, scGate tool enables users to build (and use) multi-layer models, like the TCD8 pre-computed model available in scGate_DB. In the first layer, this model gates all pure T cells, and in the second layer the model applies specific TCD8 signatures to pick out these cells in a fine-grained way (i.e. differentiating that cells from TCD4 or NK cells).
+
 
 # R Environment
 
@@ -164,7 +162,7 @@ dimplot.Yost <- DimPlot(object = dataset.list$Yost, reduction = "umap", group.by
 # Two layered model: Gating TCD8 cells
 
 A scGate multi-layer model is simply an R list of scGate models (warning: order matters). Models will be executed in an itterative manner
-```{r}
+```{r, collapse = T}
 ## explore the pre-built two-layer model. 
 TCD8.model <- scGate_DB$human$CD8.Tcell
 TCD8.model%>%class()
@@ -200,6 +198,7 @@ if(!file.exists('./input/tcd8.human.sets.rds')){
 }
 
 ```
+
 We can use the **is.pure** feature for visualizing  or isolation purposes 
 
 ```{r,fig.width= 10, fig.height=10}
@@ -210,7 +209,7 @@ dimplot.tcd8.Yost <- DimPlot(object = TCD8.Yost, reduction = "umap", group.by = 
 
 ```
 
-Prepare barplots for quantify FP and FN along categories
+Pure/Impure classification by Autor's cell category (barplot)
 
 ```{r, fig.height= 5, fig.width=10}
 # Jerby
@@ -235,13 +234,14 @@ yost.bp <- ggplot(df, aes(x = cell_type,  fill = is.pure)) + geom_bar() + theme_
 barplots <- jerby.bp + yost.bp
 ```
 
-
+Show the plots
 ```{r, fig.height= 17, fig.width=12}
 ## prepare layout
 layout <- "
 AB
 CD
 EG"
+
 ## show plots
 plt <- patchwork::wrap_plots(A = dimplot.Jerby + ggtitle("Jerby et.al.") + theme(legend.text = element_text(size=7)) ,
                       B = dimplot.Yost + ggtitle("Yost et.al.") + theme(legend.text = element_text(size=7)),  
@@ -264,8 +264,9 @@ ggsave(filename = fname, plot = plt, width = 12, height = 17)
 ```
 
 
-# Advance feature, explore signature distribution: 
+
 ```{r,fig.height= 5,fig.width= 9,echo =F, eval =F, results=F}
+# Advance feature, explore signature distribution: 
 # Jerby
 positive_signatures <- scGate_DB$human$CD8.Tcell$Tcell_CD8@positive_celltypes
 negative_signatures <- setdiff(scGate_DB$human$CD8.Tcell$Tcell_CD8@markers%>%names(),positive_signatures)
