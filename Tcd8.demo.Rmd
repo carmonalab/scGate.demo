@@ -1,23 +1,167 @@
 ---
-title: "R Notebook"
-output: html_notebook
+title: "Multilayered scGate models: isolating TCD8 cells" 
+author: "M. Andreatta, A. Berenstein and S. Carmona"
+date: "19/08/2021"
+output:
+  rmdformats::readthedown:
+    self-contained: true
+    highlight: haddock
+    thumbnails: false
+    css: styles.css
+knit: (function(input_file, encoding) {
+  out_dir <- 'docs';
+  rmarkdown::render(input_file, encoding=encoding,
+  output_file=file.path(dirname(input_file), out_dir, 'multilayer.models.TCD8.vignette.html'))})
 ---
 
 
-```{r,fig.width=12,fig.height=6}
-jerby.plot <- DimPlot(object = tcell.gating$Jerby, reduction = "umap", group.by = "scGate.annotation", label = TRUE, label.size = 3, repel = TRUE) + ggtitle("Jerby et. al.") + labs(subtitle = "sc.Gate.annotation") +  theme(legend.text = element_text(size=7)) +  theme(plot.subtitle = element_text(hjust = 0.5)) +theme(legend.position="bottom")
+# Preliminars
+## Background
+**scGate** is an open source tool designed for gating specific and uncontaminated cell types in a scRNAseq experiment. We aim to gate cell subtypes at high precision/PPV (i.e achieving high cell type purity) and we don’t care about some loss of true cells (i.e. sensitivity > 90% is ideal). We aim at a reliable tool to purify individual cell types from scRNA-seq data from complex samples (e.g. whole tissue, whole tumor) to enable i) downstream cell type-specific analysis (e.g. reference-atlas projection) and ii) cross-study comparisons/meta-analysis of cell types.
 
+## Usage
+The simplest usage mode allows users an automatic gating process of cell subsets based on pre-computed models that relies on specific cell signatures of interest.  The tool also allows an advanced mode in which users can create their own models based on personalized signatures,  as well as new training datasets. 
 
-yost.plot <- DimPlot(object = tcell.gating$Yost, reduction = "umap", group.by = "scGate.annotation", label = TRUE, label.size = 3, repel = TRUE) + ggtitle("Yost et. al.") + labs(subtitle = "sc.Gate.annotation") +  theme(legend.text = element_text(size=7)) +  theme(plot.subtitle = element_text(hjust = 0.5)) +theme(legend.position="bottom")
+# This demo
+In a [previous vignette](path_to_TCell.demo.html) we show the most basic usage of scGate tool, please visit that vignette previous to read the present one. Here, we are going to show how to take advantage of *scGate* package for filtering-out more specific cell subsets by taking advantage of multilayer models. We will show how to extract **TCD8 cells** subsets  from two recent human single cell datasets: [Jerby-Arnon.2018](https://pubmed.ncbi.nlm.nih.gov/30388455/),  [Yost.2019](https://www.nature.com/articles/s41591-019-0522-3) 
 
-jerby.plot + yost.plot
+Notice that the applied T cell model used in this [previous vignette](path_to_TCell.demo.html) works filtering cells in only one step. This means that the model filter T cells from other cell types, excluding at the same time contaminants like doublets, triplets etc or other cell types by analyzing the match/mismatch with only a certain set of signatures (provided by the model). 
+When a user is interested in more specific cell types, namely gating TCD8 cells, it is strongly recommended to do the job in an iterative manner. Keeping this into account, scGate tool enables users to build (and use) multi-layer models, like the TCD8 model pre-computed model available in scGate_DB. In the first layer, this model gates all pure T cells, and in the second layer the model applies specific TCD8 signatures to pick out these cells in a fine-grained way (i.e. differentiating that cells from TCD4 or NK cells).
+
+## Multilayer scGate models
+A multilayer scGate model could be thought as a logical (AND) concatenation of simple scGate models. The rational behind this, is to mimic the gating process that take place in flow cytometry assays. In those assays, users usually apply some criteria for a first broad gating step, extracting some desidered cellular type, and then apply another new criteria over the output of the first process to refine the search and isolation of a more specific cell type of interest. 
+
+In the context of scGate, this translates into an R list of named scGate models that must be passed to *gating.model* parameter of **scGate**   function. Please, notice that the order of the objects in the list matters, and it must be from coarse-grained gating models to finer ones. As an example, we will apply the pre-trained two layered model of TCD8 cells
+
+# R Environment
+
+Using Renv
+```{r, message=F, warning=F,results=F}
+if (!requireNamespace("renv")) install.packages("renv")
+renv::activate()
+renv::restore()
+library(dplyr)
+library(ggplot2)
+library(scGate)
+library(patchwork)
 ```
 
-Notice that the applied T cell model contains only one layer. This means that in one step we are filtering T cells from other cell types, excluding at the same time contaminants like doublets, triplets etc. 
-When a user is interested in more specific cell types, namely gating TCD8 cells, it is strongly recommended to do the job in an iterative manner. Keeping this into account, scGate enables users to build (and use) multi-layer models, like the TCD8 model pre-computed model available in scGate_DB. In their first layer this model gates all pure T cells, and in the second layer the model applies specific TCD8 signatures to pick out these cells in a fine-grained way.
+Or alternatively, manually installing scGate from GitHub
+```{r, eval=F, message=F, warning=F}
+if (!requireNamespace("remotes")) install.packages("remotes")
+remotes::install_github("carmonalab/UCell")
+remotes::install_github("carmonalab/scGate")
+library(scGate)
+```
 
 
-## Gating TCD8 cells: two layered model. 
+```{r setup, echo=FALSE, message=F, warning=F, results=F}
+library(knitr)
+library(rmdformats)
+library(formatR)
+
+
+## Global options
+options(max.print="75")
+opts_chunk$set(echo=TRUE,
+	             cache=TRUE,
+               cache.lazy=FALSE,
+               prompt=FALSE,
+               tidy=TRUE,
+               comment=NA,
+               message=FALSE,
+               warning=FALSE,
+               dev='png')
+opts_knit$set(width=75)
+
+## figure output path 
+opath <- "~/Dropbox/CSI/PAPERS/scGate/Figures"
+```
+
+# Get human datasets and preprocess them
+We are going to analyze two recent datasets, Brief description of datasets sources and processing. 
+
+## Download data
+```{r}
+do_download <- F
+
+ddir <- "input"
+if (!file.exists(ddir)) {
+    dir.create(ddir)
+}
+
+if (do_download) {
+  #JerbyArnon - melanoma (GSE115978)
+  dataUrl <- "https://drive.switch.ch/index.php/s/GOpKFDP1wtVR3x8/download"
+  download.file(dataUrl, paste0(ddir, "/human_Mel_JerbyArnon.rds"))
+
+  #Yost et al. - basal cell carcinoma (GSE123813)
+  dataUrl <- "https://drive.switch.ch/index.php/s/dEfDpaWaFeyoAD3/download"
+  download.file(dataUrl, paste0(ddir, "/Yost.pretreatment.all.rds"))
+}
+```
+
+## Basic Seurat unsupervised analysis 
+Load datasets and permorm dimensionality reduction and unsupervised analysis.
+```{r}
+# In this chunck we will 
+# a) Load data into a list
+# b) Unfiy author annotations in a new column "cell_type"
+# c) do some basic data preprocessing
+
+seed <- 27182  #pseudo random seed to be used
+
+if(!file.exists("input/human.sets.dimred.rds")){
+  dataset.list <- list()
+  
+  a <- readRDS(paste0(ddir,"/human_Mel_JerbyArnon.rds"))
+  a$Source <- "Jerby"
+  a <- AddMetaData(a, a$cell.types, col.name = "cell_type")
+  a <- a%>%subset(cell_type != "?") ## Fiter out 307 unannotated cells
+  dataset.list[["Jerby"]] <- a
+
+
+  a <- readRDS(paste0(ddir,"/Yost.pretreatment.all.rds"))
+  a$Source <- "Yost"
+  a <- AddMetaData(a, a$cluster, col.name = "cell_type")
+  dataset.list[["Yost"]] <- a
+  
+  ## Preprocess 
+  # Dimensionality reduction and unsup. analysis
+  set.seed(seed)
+  
+  for (set in names(dataset.list)) {
+    q <- dataset.list[[set]]
+    
+    q <- NormalizeData(q, verbose = FALSE)
+    q <- FindVariableFeatures(q, selection.method = "vst", nfeatures = 1000, verbose = FALSE)
+    
+    q <- ScaleData(q)
+    q <- RunPCA(q, features = q@assays$RNA@var.features, ndims.print = 1:5, nfeatures.print = 5, verbose = FALSE) 
+    q <- RunUMAP(q, reduction = "pca", dims = 1:20, seed.use= seed, verbose = FALSE)
+    
+  
+    dataset.list[[set]] <- q
+  }
+  
+  saveRDS(dataset.list,"input/human.sets.dimred.rds")
+}else{
+  dataset.list <- readRDS("input/human.sets.dimred.rds")
+}
+```
+
+Visualize the authors' annotations.
+```{r,  message=F, fig.width= 12, fig.height=7}
+dimplot.Jerby <- DimPlot(object = dataset.list$Jerby, reduction = "umap", group.by = "cell_type", label = TRUE, label.size = 3, repel = TRUE) + ggtitle("") + labs(subtitle = "Cell Type") + theme(plot.subtitle = element_text(hjust = 0.5)) +theme(legend.position="bottom") + theme(aspect.ratio = 1) +theme(legend.text = element_text(size=7))
+
+dimplot.Yost <- DimPlot(object = dataset.list$Yost, reduction = "umap", group.by = "cell_type", label = TRUE, label.size = 3, repel = TRUE) + ggtitle("") + labs(subtitle = "Cell Type") + theme(plot.subtitle = element_text(hjust = 0.5)) +theme(legend.position="bottom") + theme(aspect.ratio = 1) + theme(legend.text = element_text(size=7))
+
+
+(dimplot.Jerby + ggtitle("Jerby et.al.")) + (dimplot.Yost + ggtitle("Yost et.al."))
+```
+
+
+# Two layered model: Gating TCD8 cells
 
 A scGate multi-layer model is simply an R list of scGate models (warning: order matters). Models will be executed in an itterative manner
 ```{r}
@@ -30,7 +174,13 @@ class(TCD8.model[["Tcell_CD8"]])
 
 We only need to apply the two layer pre-trained model of TCD8 cells available in scGate_DB 
 * This may take a few minutes, you can drink a cup of coffee in the meantime.
-```{r, message=F}
+```{r,message=F,eval=F}
+TCD8.Jerby <- scGate(data = dataset.list$Jerby, gating.model = scGate_DB$human$CD8.Tcell)  
+TCD8.Yost <- scGate(data = dataset.list$Yost, gating.model = scGate_DB$human$CD8.Tcell)  
+
+```
+
+```{r, message=F,eval=T,results=F,echo =F}
 if(!file.exists('./input/tcd8.human.sets.rds')){
   tcd8.gating <- lapply(dataset.list,function(data){
     gated.object <- scGate(data = data, gating.model = scGate_DB$human$CD8.Tcell,
@@ -39,54 +189,138 @@ if(!file.exists('./input/tcd8.human.sets.rds')){
                            return_signature_scores = T)  
     return(gated.object)
   })
+  TCD8.Jerby <- tcd8.gating$Jerby
+  TCD8.Yost <- tcd8.gating$Yost
   saveRDS(tcd8.gating,'./input/tcd8.human.sets.rds')
 
 }else{
   tcd8.gating <- readRDS('./input/tcd8.human.sets.rds')
+  TCD8.Jerby <- tcd8.gating$Jerby
+  TCD8.Yost <- tcd8.gating$Yost
 }
 
 ```
+We can use the **is.pure** feature for visualizing  or isolation purposes 
 
-```{r,fig.width=12,fig.height=6}
-jerby.plot <- DimPlot(object = tcd8.gating$Jerby, reduction = "umap", group.by = "is.pure", label = TRUE, label.size = 3, repel = TRUE) + ggtitle("Jerby et. al.") + labs(subtitle = "TCD8") +  theme(plot.subtitle = element_text(hjust = 0.5)) 
+```{r,fig.width= 10, fig.height=10}
+## dimplots for gated TCD8 cells
+dimplot.tcd8.Jerby <- DimPlot(object = TCD8.Jerby, reduction = "umap", group.by = "is.pure", label = TRUE, label.size = 3, repel = TRUE) + ggtitle("")  + theme(aspect.ratio = 1)
 
+dimplot.tcd8.Yost <- DimPlot(object = TCD8.Yost, reduction = "umap", group.by = "is.pure", label = TRUE, label.size = 3, repel = TRUE) + ggtitle("")  + theme(aspect.ratio = 1)
 
-yost.plot <- DimPlot(object = tcd8.gating$Yost, reduction = "umap", group.by = "is.pure", label = TRUE, label.size = 3, repel = TRUE) + ggtitle("Yost et. al.") + labs(subtitle = "TCD8") +  theme(plot.subtitle = element_text(hjust = 0.5))
-
-jerby.plot + yost.plot
 ```
 
-Comparing results among authors' defined cell types
-```{r, results='asis'}
-writeLines("td, th { padding : 6px } th { background-color : brown ; color : white; border : 1px solid white; } td { color : brown ; border : 1px solid brown }", con = "mystyle.css")
+Prepare barplots for quantify FP and FN along categories
 
+```{r, fig.height= 5, fig.width=10}
 # Jerby
-knitr::kable(table(tcd8.gating$Jerby@meta.data[,c("cell_type","is.pure")]),format = "html")
+df <- TCD8.Jerby@meta.data
+#reorder labes for visualization purposes. 
+sorted.levels <- df%>%group_by(cell_type)%>%dplyr::summarise(Isolated = sum(is.pure =='Pure'))%>%arrange(desc(Isolated)) # extract order acording to Nro Pure detected cells
+df$cell_type <- factor(df$cell_type, level = sorted.levels$cell_type)  
+
+#create the barplot
+jerby.bp <-ggplot(df, aes(x = cell_type,  fill = is.pure)) + geom_bar() + theme_bw() + theme(aspect.ratio = 1) + theme(axis.text.x = element_text(angle = 60, vjust = 0.5, hjust=0.5)) + ggtitle("") + xlab("author's criteria")
 
 # Yost
-knitr::kable(table(tcd8.gating$Yost@meta.data[,c("cell_type","is.pure")]),format = "html")
+df <- TCD8.Yost@meta.data
+#reorder labes for visualization purposes.
+sorted.levels <- df%>%group_by(cell_type)%>%dplyr::summarise(Isolated = sum(is.pure =='Pure'))%>%arrange(desc(Isolated))  # extract order acording to Nro Pure detected cells
+df$cell_type <- factor(df$cell_type, level = sorted.levels$cell_type) 
+
+#create the barplot
+yost.bp <- ggplot(df, aes(x = cell_type,  fill = is.pure)) + geom_bar() + theme_bw() + theme(aspect.ratio = 1) + theme(axis.text.x = element_text(angle = 60, vjust = 0.5, hjust=0.5)) + ggtitle("") + xlab("author's criteria")
+
+#show plots
+barplots <- jerby.bp + yost.bp
+```
+
+
+```{r, fig.height= 17, fig.width=12}
+## prepare layout
+layout <- "
+AB
+CD
+EG"
+## show plots
+plt <- patchwork::wrap_plots(A = dimplot.Jerby + ggtitle("Jerby et.al.") + theme(legend.text = element_text(size=7)) ,
+                      B = dimplot.Yost + ggtitle("Yost et.al.") + theme(legend.text = element_text(size=7)),  
+                      C = dimplot.tcd8.Jerby ,
+                      D= dimplot.tcd8.Yost,
+                      E= jerby.bp,
+                      G = yost.bp, 
+                      design = layout) + plot_annotation(tag_levels = 'A')
+
+plt
+```
+
+```{r, echo =F,results=F,message=F}
+fname = file.path(opath,"tcd8_jerby_yost.pdf")
+ggsave(filename = fname, plot = plt, width = 12, height = 17)
+
+fname = file.path(opath,"tcd8_jerby_yost.png")
+ggsave(filename = fname, plot = plt, width = 12, height = 17)
 
 ```
 
 
-## Further reading
+# Advance feature, explore signature distribution: 
+```{r,fig.height= 5,fig.width= 9,echo =F, eval =F, results=F}
+# Jerby
+positive_signatures <- scGate_DB$human$CD8.Tcell$Tcell_CD8@positive_celltypes
+negative_signatures <- setdiff(scGate_DB$human$CD8.Tcell$Tcell_CD8@markers%>%names(),positive_signatures)
+
+mtd <- TCD8.Jerby@meta.data %>% tidyr::drop_na() 
+mtd$max_negative_zscores <- (mtd[,paste0(negative_signatures,"_Zscore")])%>%apply(1,max)
+positive_zscore = paste0(positive_signature,"_Zscore")
+
+# plot
+ggplot(mtd,aes_string(x=positive_zscore)) + geom_histogram()
+ggplot(mtd,aes(x=max_negative_zscores)) + geom_histogram()
+
+
+
+xx = paste0(negative_signature,"_Zscore")
+ggplot(TCD8.Jerby@meta.data,aes_string(x=xx)) + geom_histogram()
+
+
+ggplot(data = data.frame(max_pos = max_pos,max_neg = max_neg))
+```
+
+```{r,fig.height= 5,fig.width= 9,echo =F, eval =F, results=F}
+TCD8.Jerby.advanced <- scGate(data = TCD8.Jerby, gating.model = scGate_DB$human$CD8.Tcell,compute_scores = F,
+                              max.impurity = 0.25)  
+
+```
+
+
+```{r,fig.height= 5,fig.width= 9,echo =F, eval =F, results=F}
+#reorder labes for visualization purposes. 
+
+df <- TCD8.Jerby.advanced@meta.data
+
+sorted.levels <- df%>%group_by(cell_type)%>%dplyr::summarise(Isolated = sum(is.pure =='Pure'))%>%arrange(desc(Isolated)) # extract order acording to Nro Pure detected cells
+
+df$cell_type <- factor(df$cell_type, level = sorted.levels$cell_type)  
+
+#create the barplot
+
+jerby.advanced.bp <-ggplot(df, aes(x = cell_type,  fill = is.pure)) + geom_bar() + theme_bw() + theme(aspect.ratio = 1) + theme(axis.text.x = element_text(angle = 60, vjust = 0.5, hjust=0.5)) + ggtitle("") + xlab("author's criteria")
+
+jerby.bp + jerby.advanced.bp
+```
+
+
+# Further reading
 The code and the package are available at the *scGate* [GitHub repository](https://github.com/carmonalab/scGate)
 
- Arreglar esto
 
-* We will gate these datasets taking advantage of the *Tcell* pre-computed model with default parameters.  
-* We are explicitly seting *sd.in* and *sd.out* parammeters with their default values only for teaching purposes. 
-* Notice that reducing sd.in or sd.out thresholds translates in a more conservative gating process.
-* By setting *return_signature_scores* = T we incorporate signature scores into the meta.data object. 
-
-```{r,results=F}
-#renv::snapshot()
-```
-
-
-
+```{r,eval=F,echo=F}
 ## De novo analysis (namely: Bubin, Bassez)
 ## Validation 1 layer Done!  Add advanced analysis : zscore ubicacion y ploteo de algunos
 ## Validation 2 layers (Jerby Arnon Cd8). Advance feature, quizás como mover thresholds
+
+```
+
  
 
