@@ -335,16 +335,20 @@
 <p>A scGate multi-layer model is simply an R list of scGate models (warning: order matters). Models will be executed in an itterative manner</p>
 <div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="do">## explore the pre-built two-layer model.</span></span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>TCD8.model <span class="ot">&lt;-</span> scGate_DB<span class="sc">$</span>human<span class="sc">$</span>CD8.Tcell</span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>TCD8.model <span class="sc">%&gt;%</span></span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">class</span>()</span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>[<span class="dv">1</span>] <span class="st">&quot;list&quot;</span></span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>TCD8.model <span class="sc">%&gt;%</span></span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    <span class="fu">names</span>()</span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>[<span class="dv">1</span>] <span class="st">&quot;T.cell&quot;</span>    <span class="st">&quot;Tcell_CD8&quot;</span></span>
-<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="fu">class</span>(TCD8.model[[<span class="st">&quot;Tcell_CD8&quot;</span>]])</span>
-<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>[<span class="dv">1</span>] <span class="st">&quot;scGate_Model&quot;</span></span>
-<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a><span class="fu">attr</span>(,<span class="st">&quot;package&quot;</span>)</span>
-<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>[<span class="dv">1</span>] <span class="st">&quot;scGate&quot;</span></span></code></pre></div>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="co"># A multilayer model is a list of named scGate models:</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="fu">class</span>(TCD8.model)</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>[<span class="dv">1</span>] <span class="st">&quot;list&quot;</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="co"># see thier names</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(TCD8.model)</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>[<span class="dv">1</span>] <span class="st">&quot;T.cell&quot;</span>    <span class="st">&quot;Tcell_CD8&quot;</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a><span class="co"># each named element of the list must be a scGate trained model.</span></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a><span class="fu">class</span>(TCD8.model[[<span class="st">&quot;Tcell_CD8&quot;</span>]])</span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>[<span class="dv">1</span>] <span class="st">&quot;scGate_Model&quot;</span></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a><span class="fu">attr</span>(,<span class="st">&quot;package&quot;</span>)</span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>[<span class="dv">1</span>] <span class="st">&quot;scGate&quot;</span></span></code></pre></div>
 <p>We only need to apply the two layer pre-trained model of TCD8 cells available in scGate_DB * This may take a few minutes, you can drink a cup of coffee in the meantime.</p>
 <div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>TCD8.Jerby <span class="ot">&lt;-</span> <span class="fu">scGate</span>(<span class="at">data =</span> dataset.list<span class="sc">$</span>Jerby, <span class="at">gating.model =</span> scGate_DB<span class="sc">$</span>human<span class="sc">$</span>CD8.Tcell)</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>TCD8.Yost <span class="ot">&lt;-</span> <span class="fu">scGate</span>(<span class="at">data =</span> dataset.list<span class="sc">$</span>Yost, <span class="at">gating.model =</span> scGate_DB<span class="sc">$</span>human<span class="sc">$</span>CD8.Tcell)</span></code></pre></div>
