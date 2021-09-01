@@ -224,12 +224,16 @@ saveRDS(data.seurat.raw, file="aux/Gubin_CD45_raw.rds")
 
 ## Data normalization and unsupervised analysis
 
-```{r, eval =T, echo = F}
+```{r, echo = F}
+preprocess =T
 Gubin.clean.data <- 'aux/Gubin_CD45_clean.rds'
-if(file.exists(Gubin.clean.data)) data.seurat <- readRDS(Gubin.clean.data)  
+if(file.exists(Gubin.clean.data)) {
+  data.seurat <- readRDS(Gubin.clean.data)
+  preprocess = F
+}
 ```
 
-```{r, message=F, results=F, eval =F}
+```{r, message=F, results=F, eval = preprocess}
 ndim=30
 set.seed(1234)
 
@@ -270,6 +274,8 @@ features=c("Lck","Csf1r","Spi1","Cd3e","H2-Eb1","Ccr7","S100a9","Xcr1","Siglech"
 plt.selected.mkr <- FeaturePlot(data.seurat, reduction="umap", features=features, order = T,ncol = 3, max.cutoff = 'q99')
 plot(plt.selected.mkr)
 ```
+
+
 ```{r,echo =F}
 ggsave(file.path(figure.path,"Gubin_select_markers_UMAP.png"), plot=plt.selected.mkr, width=14, height=10)
 ```
@@ -282,6 +288,7 @@ saveRDS(data.seurat, file="aux/Gubin_CD45_clean.rds")
 ```
 
 
+
 # scGate for isolating cell subsets
 
 ## Filter on T cells
@@ -290,7 +297,7 @@ saveRDS(data.seurat, file="aux/Gubin_CD45_clean.rds")
 ffile = "./aux/tcell.gubin.rds"
 if(file.exists(ffile)){
   gate = F
-  data.myel.scgate <- readRDS(ffile)
+  data.T<- readRDS(ffile)
 }else{
   gate = T
 }
@@ -301,18 +308,25 @@ data.T <- scGate(data.seurat, gating.model = scGate_DB$mouse$Tcell, sd.out = 5)
 saveRDS(data.T,ffile)
 ```
 
-```{r, fig.width= 9,fig.height=8,eval =F}
-plt.ispure <- DimPlot(data.T, group.by =  'is.pure')
-plt.ann <- DimPlot(data.T , group.by="scGate.annotation")
+```{r, fig.width= 12,fig.height=11,eval =T}
+plt.ispure <- DimPlot(data.T, group.by =  'is.pure') + theme(aspect.ratio = 1)
+plt.ann <- DimPlot(data.T , group.by="scGate.annotation") + theme(aspect.ratio = 1)
 
 features=c("Lck","Cd3e","Fcer1g")
-lymphoid <- FeaturePlot(data.seurat, reduction="umap",ncol =3,features=features, order = T, max.cutoff = 'q99')
+lymphoid <- FeaturePlot(data.T, reduction="umap",ncol =3,features=features, order = T, max.cutoff = 'q99')  + theme(aspect.ratio = 1)
 
 layout <- "
-AAAAA
-BB#CC"
-wrap_plots(A = lymphoid , B = plt.ispure , C =  plt.ann, design = layout)
+AAAAAAA
+BBB#CCC"
+
+plt <- wrap_plots(A = lymphoid , B = plt.ispure , C =  plt.ann, design = layout)
+plt
 ```
+
+```{r,echo =F}
+ggsave(file.path(figure.path,"Gubin_TCell.png"), plot=plt, width=12, height=11, dpi = 300)
+```
+
 
 ## Filter myeloid APCs 
 
@@ -334,22 +348,26 @@ saveRDS(data.myel.scgate,ffile)
 
 
 
-```{r,fig.height=10,fig.width=6}
-plt.ispure <- DimPlot(data.myel.scgate, group.by =  'is.pure')
-plt.ann <- DimPlot(data.myel.scgate , group.by="scGate.annotation")
+```{r,fig.height=10,fig.width=12}
+plt.ispure <- DimPlot(data.myel.scgate, group.by =  'is.pure')  
+plt.ann <- DimPlot(data.myel.scgate , group.by="scGate.annotation")  
 
 features=c("Csf1r","Spi1","H2-Eb1", "S100a9")
-apcs <- FeaturePlot(data.seurat, reduction="umap",ncol =2,features=features, order = T, max.cutoff = 'q99')
+apcs <- FeaturePlot(data.myel.scgate, reduction="umap",ncol =4,features=features, order = T, max.cutoff = 'q99')
 
 layout <- "
-AA
-AA
-BB
-CC"
-wrap_plots(A = apcs , B = plt.ispure , C =  plt.ann, design = layout)
+AAAAA
+BB#CC"
+plt <- wrap_plots(A = apcs , B = plt.ispure , C =  plt.ann, design = layout)
+plt
 
 ```
 
+
+```{r,echo =F}
+ggsave(file.path(figure.path,"Gubin_mAPC.png"), plot=plt, width=13, height=10, dpi = 300)
+
+```
 
 Project into myeloid atlas
 Load atlas
