@@ -165,8 +165,14 @@ A scGate multi-layer model is simply an R list of scGate models (warning: order 
 ```{r, collapse = T}
 ## explore the pre-built two-layer model. 
 TCD8.model <- scGate_DB$human$CD8.Tcell
-TCD8.model%>%class()
-TCD8.model%>%names()
+
+# A multilayer model is a list of named scGate models:
+class(TCD8.model)
+
+# see thier names
+names(TCD8.model)
+
+# each named element of the list must be a scGate trained model.
 class(TCD8.model[["Tcell_CD8"]])
 ```
 
