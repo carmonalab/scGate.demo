@@ -49,8 +49,6 @@ Jerby.pred <- Yost.pred <- list()
 
 ```
 
-```{r}
-```
 
 # SingleR
 ```{r}
@@ -59,7 +57,7 @@ hpca.se <- HumanPrimaryCellAtlasData()
 
 
 ```{r}
-param <- MulticoreParam(workers = 32)
+param <- MulticoreParam(workers = 60)
 
 t0 = Sys.time()
 Jerby.pred$SingleR.hpca <- SingleR(test = GetAssayData(dataset.list$Jerby), ref = hpca.se,labels = hpca.se$label.main, BPPARAM=param)
@@ -79,7 +77,7 @@ Yost.pred$SingleR.fine.hpca <- SingleR(test = GetAssayData(dataset.list$Yost), r
 
 t1 = Sys.time()
 t1 -t0
-Single
+
 ```
 
 ```{r}
@@ -97,7 +95,8 @@ sceZil <- sceZil[,!is.na(sceZil$`Major cell type`)]
 
 # SingleR() expects reference datasets to be normalized and log-transformed.
 sceZil <- scuttle::logNormCounts(sceZil)
-sceZil$`Most likely LM22 cell type`%>%table%>%sort(decreasing = T)%>%head()
+#sceZil$`Most likely LM22 cell type`%>%table%>%sort(decreasing = T)%>%head()
+
 
 param <- MulticoreParam(workers = 32)
 
@@ -110,6 +109,34 @@ t1 -t0
 
 ```
 
+```{r}
+
+sceZil_pruned <- sceZil[,!sceZil$`Major cell type`%>%grepl("Patient",.)]  # remove patient specific cells
+tumorcells <- sceZil_pruned$`Major cell type`%>%grepl("^t",.)
+sceZil_pruned$LM22 <- sceZil_pruned$`Most likely LM22 cell type`
+sceZil_pruned$LM22[tumorcells]  <- paste0("t",sceZil_pruned$LM22[tumorcells])
+sceZil_pruned$LM22%>%table
+
+sceZil_tumor <- sceZil_pruned[,tumorcells]  # remove patient specific cells
+sceZil_blood <- sceZil_pruned[,!tumorcells]  # remove patient specific cells
+
+
+param <- MulticoreParam(workers = 60)
+
+t0 = Sys.time()
+Jerby.pred$SingleR.Zil.tumor <- SingleR(test = GetAssayData(dataset.list$Jerby), ref = sceZil_tumor,labels = sceZil_tumor$LM22, BPPARAM=param)
+Yost.pred$SingleR.Zil.tumor <- SingleR(test = GetAssayData(dataset.list$Yost), ref = sceZil_tumor,labels = sceZil_tumor$LM22, BPPARAM=param)
+t1 = Sys.time()
+t1 -t0
+
+t2 = Sys.time()
+Jerby.pred$SingleR.Zil.blood <- SingleR(test = GetAssayData(dataset.list$Jerby), ref = sceZil_blood,labels = sceZil_blood$LM22, BPPARAM=param)
+Yost.pred$SingleR.Zil.blood <- SingleR(test = GetAssayData(dataset.list$Yost), ref = sceZil_blood,labels  = sceZil_blood$LM22, BPPARAM=param)
+t3 = Sys.time()
+t3 -t2
+
+
+```
 
 ```{r}
 Jerby.pred$SingleR.hpca$pruned.labels%>%table
@@ -151,26 +178,35 @@ mccs <- data.frame(mcc = c(),method = c(),target = c(), dataset = c())
 
 a <- my.summary(actual = dataset.list$Jerby$cell_type%>%grepl("T.cell|T.CD4|T.CD8",.) + 0 ,pred = (Jerby.pred$scGate.tcell$is.pure== "Pure")+0)
 b <- my.summary(actual = dataset.list$Jerby$cell_type%>%grepl("T.cell|T.CD4|T.CD8",.) + 0 ,pred = (Jerby.pred$SingleR.hpca$pruned.labels%>%grepl("T_cell",.)) + 0)
-d <- my.summary(actual = dataset.list$Jerby$cell_type%>%grepl("T.cell|T.CD4|T.CD8",.) + 0 ,pred = (Jerby.pred$SingleR.Zil$pruned.labels%>%grepl("T cells",.)) + 0)
+d <- my.summary(actual = dataset.list$Jerby$cell_type%>%grepl("T.cell|T.CD4|T.CD8",.) + 0 ,pred = (Jerby.pred$SingleR.Zil.tumor$pruned.labels%>%grepl("T cells",.)) + 0)
+e <- my.summary(actual = dataset.list$Jerby$cell_type%>%grepl("T.cell|T.CD4|T.CD8",.) + 0 ,pred = (Jerby.pred$SingleR.Zil.blood$pruned.labels%>%grepl("T cells",.)) + 0)
+
 mccs <- rbind(mccs, data.frame(mcc = a$summary[[metric]], method = "scGate", target = "T.cell", dataset = "Jerby"))
 mccs <- rbind(mccs, data.frame(mcc = b$summary[[metric]], method = "SingleR", target = "T.cell", dataset = "Jerby"))
-mccs <- rbind(mccs, data.frame(mcc = d$summary[[metric]], method = "SingleR.Zil", target = "T.cell", dataset = "Jerby"))
+mccs <- rbind(mccs, data.frame(mcc = d$summary[[metric]], method = "SingleR.Zil.tumor", target = "T.cell", dataset = "Jerby"))
+mccs <- rbind(mccs, data.frame(mcc = e$summary[[metric]], method = "SingleR.Zil.blood", target = "T.cell", dataset = "Jerby"))
 
 
 a <- my.summary(actual = dataset.list$Jerby$cell_type%>%grepl("B.cell",.) + 0 ,pred = (Jerby.pred$scGate.bcell$is.pure== "Pure")+0)
 b <- my.summary(actual = dataset.list$Jerby$cell_type%>%grepl("B.cell",.) + 0 ,pred = (Jerby.pred$SingleR.hpca$pruned.labels%>%grepl("B_cell",.)) + 0 )
-d <- my.summary(actual = dataset.list$Jerby$cell_type%>%grepl("B.cell",.) + 0 ,pred = (Jerby.pred$SingleR.Zil$pruned.labels%>%grepl("B cells",.)) + 0)
+d <- my.summary(actual = dataset.list$Jerby$cell_type%>%grepl("B.cell",.) + 0 ,pred = (Jerby.pred$SingleR.Zil.tumor$pruned.labels%>%grepl("B cells",.)) + 0)
+e <- my.summary(actual = dataset.list$Jerby$cell_type%>%grepl("B.cell",.) + 0 ,pred = (Jerby.pred$SingleR.Zil.blood$pruned.labels%>%grepl("B cells",.)) + 0)
+
 mccs <- rbind(mccs, data.frame(mcc = a$summary[[metric]], method = "scGate", target = "B.cell", dataset = "Jerby"))
 mccs <- rbind(mccs, data.frame(mcc = b$summary[[metric]], method = "SingleR", target = "B.cell", dataset = "Jerby"))
-mccs <- rbind(mccs, data.frame(mcc = d$summary[[metric]], method = "SingleR.Zil", target = "B.cell", dataset = "Jerby"))
+mccs <- rbind(mccs, data.frame(mcc = d$summary[[metric]], method = "SingleR.Zil.tumor", target = "B.cell", dataset = "Jerby"))
+mccs <- rbind(mccs, data.frame(mcc = e$summary[[metric]], method = "SingleR.Zil.blood", target = "B.cell", dataset = "Jerby"))
 
 
 a <- my.summary(actual = dataset.list$Jerby$cell_type%>%grepl("Mon|Mac|DC",.) + 0 ,pred = (Jerby.pred$scGate.MoMacDen$is.pure== "Pure")+0)
 b <- my.summary(actual = dataset.list$Jerby$cell_type%>%grepl("Mon|Mac|DC",.) + 0 ,pred = (Jerby.pred$SingleR.hpca$pruned.labels%>%grepl("Mon|Mac|DC",.)) + 0 )
-d <- my.summary(actual = dataset.list$Jerby$cell_type%>%grepl("Mon|Mac|DC",.) + 0 ,pred = (Jerby.pred$SingleR.Zil$pruned.labels%>%grepl("Mon|Mac|Dend",.)) + 0)
+d <- my.summary(actual = dataset.list$Jerby$cell_type%>%grepl("Mon|Mac|DC",.) + 0 ,pred = (Jerby.pred$SingleR.Zil.tumor$pruned.labels%>%grepl("Mon|Mac|Dend",.)) + 0)
+e <- my.summary(actual = dataset.list$Jerby$cell_type%>%grepl("Mon|Mac|DC",.) + 0 ,pred = (Jerby.pred$SingleR.Zil.blood$pruned.labels%>%grepl("Mon|Mac|Dend",.)) + 0)
+
 mccs <- rbind(mccs, data.frame(mcc = a$summary[[metric]], method = "scGate", target = "MonMacDC", dataset = "Jerby"))
 mccs <- rbind(mccs, data.frame(mcc = b$summary[[metric]], method = "SingleR", target = "MonMacDC", dataset = "Jerby"))
-mccs <- rbind(mccs, data.frame(mcc = d$summary[[metric]], method = "SingleR.Zil", target = "MonMacDC", dataset = "Jerby"))
+mccs <- rbind(mccs, data.frame(mcc = d$summary[[metric]], method = "SingleR.Zil.tumor", target = "MonMacDC", dataset = "Jerby"))
+mccs <- rbind(mccs, data.frame(mcc = e$summary[[metric]], method = "SingleR.Zil.blood", target = "MonMacDC", dataset = "Jerby"))
 
 
 ```
@@ -180,28 +216,36 @@ Yost
 ## Yost 
 a <- my.summary(actual = dataset.list$Yost$cell_type%>%grepl("T_cell|Tcell",.) + 0 ,pred = (Yost.pred$scGate.tcell$is.pure== "Pure")+0)
 b <- my.summary(actual = dataset.list$Yost$cell_type%>%grepl("T_cell|Tcell",.) + 0 ,pred = (Yost.pred$SingleR.hpca$pruned.labels%>%grepl("T_cell",.)) + 0)
-d <- my.summary(actual = dataset.list$Yost$cell_type%>%grepl("T.cell|T.CD4|T.CD8",.) + 0 ,pred = (Yost.pred$SingleR.Zil$pruned.labels%>%grepl("T cells",.)) + 0)
+d <- my.summary(actual = dataset.list$Yost$cell_type%>%grepl("T.cell|T.CD4|T.CD8",.) + 0 ,pred = (Yost.pred$SingleR.Zil.tumor$pruned.labels%>%grepl("T cells",.)) + 0)
+e <- my.summary(actual = dataset.list$Yost$cell_type%>%grepl("T.cell|T.CD4|T.CD8",.) + 0 ,pred = (Yost.pred$SingleR.Zil.blood$pruned.labels%>%grepl("T cells",.)) + 0)
+
 mccs <- rbind(mccs, data.frame(mcc = a$summary[[metric]], method = "scGate", target = "T.cell", dataset = "Yost"))
 mccs <- rbind(mccs, data.frame(mcc = b$summary[[metric]], method = "SingleR", target = "T.cell", dataset = "Yost"))
-mccs <- rbind(mccs, data.frame(mcc = d$summary[[metric]], method = "SingleR.Zil", target = "T.cell", dataset = "Yost"))
+mccs <- rbind(mccs, data.frame(mcc = d$summary[[metric]], method = "SingleR.Zil.tumor", target = "T.cell", dataset = "Yost"))
+mccs <- rbind(mccs, data.frame(mcc = e$summary[[metric]], method = "SingleR.Zil.blood", target = "T.cell", dataset = "Yost"))
 
 
 
 
 a <- my.summary(actual = dataset.list$Yost$cell_type%>%grepl("B_cell",.) + 0 ,pred = (Yost.pred$scGate.bcell$is.pure== "Pure")+0)
 b <- my.summary(actual = dataset.list$Yost$cell_type%>%grepl("B_cell",.) + 0 ,pred = (Yost.pred$SingleR.hpca$pruned.labels%>%grepl("B_cell",.)) + 0 )
-d <- my.summary(actual = dataset.list$Yost$cell_type%>%grepl("B_cell",.) + 0 ,pred = (Yost.pred$SingleR.Zil$pruned.labels%>%grepl("B cells",.)) + 0)
+d <- my.summary(actual = dataset.list$Yost$cell_type%>%grepl("B_cell",.) + 0 ,pred = (Yost.pred$SingleR.Zil.tumor$pruned.labels%>%grepl("B cells",.)) + 0)
+e <- my.summary(actual = dataset.list$Yost$cell_type%>%grepl("B_cell",.) + 0 ,pred = (Yost.pred$SingleR.Zil.blood$pruned.labels%>%grepl("B cells",.)) + 0)
 mccs <- rbind(mccs, data.frame(mcc = a$summary[[metric]], method = "scGate", target = "B.cell", dataset = "Yost"))
 mccs <- rbind(mccs, data.frame(mcc = b$summary[[metric]], method = "SingleR", target = "B.cell", dataset = "Yost"))
-mccs <- rbind(mccs, data.frame(mcc = d$summary[[metric]], method = "SingleR.Zil", target = "B.cell", dataset = "Yost"))
+mccs <- rbind(mccs, data.frame(mcc = d$summary[[metric]], method = "SingleR.Zil.tumor", target = "B.cell", dataset = "Yost"))
+mccs <- rbind(mccs, data.frame(mcc = e$summary[[metric]], method = "SingleR.Zil.blood", target = "B.cell", dataset = "Yost"))
 
 
 a <- my.summary(actual = dataset.list$Yost$cell_type%>%grepl("Mon|Mac|DC",.) + 0 ,pred = (Yost.pred$scGate.MoMacDen$is.pure== "Pure")+0)
 b <- my.summary(actual = dataset.list$Yost$cell_type%>%grepl("Mon|Mac|DC",.) + 0 ,pred = (Yost.pred$SingleR.hpca$pruned.labels%>%grepl("Mon|Mac|DC",.)) + 0 )
-d <- my.summary(actual = dataset.list$Yost$cell_type%>%grepl("Mon|Mac|DC",.) + 0 ,pred = (Yost.pred$SingleR.Zil$pruned.labels%>%grepl("Mon|Mac|Dend",.)) + 0)
+d <- my.summary(actual = dataset.list$Yost$cell_type%>%grepl("Mon|Mac|DC",.) + 0 ,pred = (Yost.pred$SingleR.Zil.tumor$pruned.labels%>%grepl("Mon|Mac|Dend",.)) + 0)
+e <- my.summary(actual = dataset.list$Yost$cell_type%>%grepl("Mon|Mac|DC",.) + 0 ,pred = (Yost.pred$SingleR.Zil.blood$pruned.labels%>%grepl("Mon|Mac|Dend",.)) + 0)
+
 mccs <- rbind(mccs, data.frame(mcc = a$summary[[metric]], method = "scGate", target = "MonMacDC", dataset = "Yost"))
 mccs <- rbind(mccs, data.frame(mcc = b$summary[[metric]], method = "SingleR", target = "MonMacDC", dataset = "Yost"))
-mccs <- rbind(mccs, data.frame(mcc = d$summary[[metric]], method = "SingleR.Zil", target = "MonMacDC", dataset = "Yost"))
+mccs <- rbind(mccs, data.frame(mcc = d$summary[[metric]], method = "SingleR.Zil.tumor", target = "MonMacDC", dataset = "Yost"))
+mccs <- rbind(mccs, data.frame(mcc = e$summary[[metric]], method = "SingleR.Zil.blood", target = "MonMacDC", dataset = "Yost"))
 
 
 
@@ -212,42 +256,49 @@ mccs <- rbind(mccs, data.frame(mcc = d$summary[[metric]], method = "SingleR.Zil"
 
 ## T.CD8
 a <- my.summary(actual = dataset.list$Jerby$cell_type%>%grepl("CD8",.) + 0 ,pred = (Jerby.pred$scGate.tcd8$is.pure== "Pure")+0)
-b <- my.summary(actual = dataset.list$Jerby$cell_type%>%grepl("CD8",.) + 0 ,pred = (Jerby.pred$SingleR.Zil$pruned.labels%>%grepl("CD8",.)) + 0 )
+b <- my.summary(actual = dataset.list$Jerby$cell_type%>%grepl("CD8",.) + 0 ,pred = (Jerby.pred$SingleR.Zil.tumor$pruned.labels%>%grepl("CD8",.)) + 0 )
 d <- my.summary(actual = dataset.list$Jerby$cell_type%>%grepl("CD8",.) + 0 ,pred = (Jerby.pred$SingleR.fine.hpca$pruned.labels%>%grepl("CD8",.)) + 0)
+e <- my.summary(actual = dataset.list$Jerby$cell_type%>%grepl("CD8",.) + 0 ,pred = (Jerby.pred$SingleR.Zil.blood$pruned.labels%>%grepl("CD8",.)) + 0 )
 
 mccs <- rbind(mccs, data.frame(mcc = a$summary[[metric]], method = "scGate", target = "TCD8", dataset = "Jerby"))
-mccs <- rbind(mccs, data.frame(mcc = b$summary[[metric]], method = "SingleR.Zil", target = "TCD8", dataset = "Jerby"))
+mccs <- rbind(mccs, data.frame(mcc = b$summary[[metric]], method = "SingleR.Zil.tumor", target = "TCD8", dataset = "Jerby"))
 mccs <- rbind(mccs, data.frame(mcc = d$summary[[metric]], method = "SingleR.fine", target = "TCD8", dataset = "Jerby"))
+mccs <- rbind(mccs, data.frame(mcc = e$summary[[metric]], method = "SingleR.Zil.blood", target = "TCD8", dataset = "Jerby"))
 
 ## T.CD4
 a <- my.summary(actual = dataset.list$Jerby$cell_type%>%grepl("CD4",.) + 0 ,pred = (Jerby.pred$scGate.tcd4$is.pure== "Pure")+0)
-b <- my.summary(actual = dataset.list$Jerby$cell_type%>%grepl("CD4",.) + 0 ,pred = (Jerby.pred$SingleR.Zil$pruned.labels%>%grepl("CD4|Treg|helper",.)) + 0 )
+b <- my.summary(actual = dataset.list$Jerby$cell_type%>%grepl("CD4",.) + 0 ,pred = (Jerby.pred$SingleR.Zil.tumor$pruned.labels%>%grepl("CD4|Treg|helper",.)) + 0 )
 d <- my.summary(actual = dataset.list$Jerby$cell_type%>%grepl("CD4",.) + 0 ,pred = (Jerby.pred$SingleR.fine.hpca$pruned.labels%>%grepl("CD4|Treg|helper",.)) + 0 )
+e <- my.summary(actual = dataset.list$Jerby$cell_type%>%grepl("CD4",.) + 0 ,pred = (Jerby.pred$SingleR.Zil.blood$pruned.labels%>%grepl("CD4|Treg|helper",.)) + 0 )
 
 mccs <- rbind(mccs, data.frame(mcc = a$summary[[metric]], method = "scGate", target = "TCD4", dataset = "Jerby"))
-mccs <- rbind(mccs, data.frame(mcc = b$summary[[metric]], method = "SingleR.Zil", target = "TCD4", dataset = "Jerby"))
+mccs <- rbind(mccs, data.frame(mcc = b$summary[[metric]], method = "SingleR.Zil.tumor", target = "TCD4", dataset = "Jerby"))
 mccs <- rbind(mccs, data.frame(mcc = d$summary[[metric]], method = "SingleR.fine", target = "TCD4", dataset = "Jerby"))
+mccs <- rbind(mccs, data.frame(mcc = e$summary[[metric]], method = "SingleR.Zil.blood", target = "TCD4", dataset = "Jerby"))
 
 
 #Yost
 ## T.CD8
 a <- my.summary(actual = dataset.list$Yost$cell_type%>%grepl("CD8|prolif",.) + 0 ,pred = (Yost.pred$scGate.tcd8$is.pure== "Pure")+0)
-b <- my.summary(actual = dataset.list$Yost$cell_type%>%grepl("CD8|prolif",.) + 0 ,pred = (Yost.pred$SingleR.Zil$pruned.labels%>%grepl("CD8",.)) + 0 )
-
+b <- my.summary(actual = dataset.list$Yost$cell_type%>%grepl("CD8|prolif",.) + 0 ,pred = (Yost.pred$SingleR.Zil.tumor$pruned.labels%>%grepl("CD8",.)) + 0 )
 d <- my.summary(actual = dataset.list$Yost$cell_type%>%grepl("CD8|prolif",.) + 0 ,pred = (Yost.pred$SingleR.fine.hpca$pruned.labels%>%grepl("CD8",.)) + 0 )
+e <- my.summary(actual = dataset.list$Yost$cell_type%>%grepl("CD8|prolif",.) + 0 ,pred = (Yost.pred$SingleR.Zil.blood$pruned.labels%>%grepl("CD8",.)) + 0 )
 
 mccs <- rbind(mccs, data.frame(mcc = a$summary[[metric]], method = "scGate", target = "TCD8", dataset = "Yost"))
-mccs <- rbind(mccs, data.frame(mcc = b$summary[[metric]], method = "SingleR.Zil", target = "TCD8", dataset = "Yost"))
+mccs <- rbind(mccs, data.frame(mcc = b$summary[[metric]], method = "SingleR.Zil.tumor", target = "TCD8", dataset = "Yost"))
 mccs <- rbind(mccs, data.frame(mcc = d$summary[[metric]], method = "SingleR.fine", target = "TCD8", dataset = "Yost"))
+mccs <- rbind(mccs, data.frame(mcc = e$summary[[metric]], method = "SingleR.Zil.blood", target = "TCD8", dataset = "Yost"))
 
 ## T.CD4
 a <- my.summary(actual = dataset.list$Yost$cell_type%>%grepl("CD4|Tregs",.) + 0 ,pred = (Yost.pred$scGate.tcd4$is.pure== "Pure")+0)
-b <- my.summary(actual = dataset.list$Yost$cell_type%>%grepl("CD4|Tregs",.) + 0 ,pred = (Yost.pred$SingleR.Zil$pruned.labels%>%grepl("CD4|Treg|helper",.)) + 0 )
+b <- my.summary(actual = dataset.list$Yost$cell_type%>%grepl("CD4|Tregs",.) + 0 ,pred = (Yost.pred$SingleR.Zil.tumor$pruned.labels%>%grepl("CD4|Treg|helper",.)) + 0 )
 d <- my.summary(actual = dataset.list$Yost$cell_type%>%grepl("CD4|Tregs",.) + 0 ,pred = (Yost.pred$SingleR.fine.hpca$pruned.labels%>%grepl("CD4|Treg|helper",.)) + 0 )
+e <- my.summary(actual = dataset.list$Yost$cell_type%>%grepl("CD4|Tregs",.) + 0 ,pred = (Yost.pred$SingleR.Zil.blood$pruned.labels%>%grepl("CD4|Treg|helper",.)) + 0 )
 
 mccs <- rbind(mccs, data.frame(mcc = a$summary[[metric]], method = "scGate", target = "TCD4", dataset = "Yost"))
-mccs <- rbind(mccs, data.frame(mcc = b$summary[[metric]], method = "SingleR.Zil", target = "TCD4", dataset = "Yost"))
+mccs <- rbind(mccs, data.frame(mcc = b$summary[[metric]], method = "SingleR.Zil.tumor", target = "TCD4", dataset = "Yost"))
 mccs <- rbind(mccs, data.frame(mcc = d$summary[[metric]], method = "SingleR.fine", target = "TCD4", dataset = "Yost"))
+mccs <- rbind(mccs, data.frame(mcc = e$summary[[metric]], method = "SingleR.Zil.blood", target = "TCD4", dataset = "Yost"))
 
 
 ```
