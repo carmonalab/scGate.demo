@@ -1,0 +1,128 @@
+---
+title: "Intuitive Immune Isolation of cell types with scGate. Basic examples"
+author: "M. Andreatta, A. Berenstein and S. Carmona"
+date: "29/09/2021"
+output:
+  rmdformats::readthedown:
+    self-contained: true
+    highlight: haddock
+    thumbnails: false
+    css: styles.css
+knit: (function(input_file, encoding) {
+  out_dir <- 'docs';
+  rmarkdown::render(input_file, encoding=encoding,
+ output_file=file.path(dirname(input_file), out_dir, 'scGate.basic.usage.html'))})
+---
+
+
+```{r, message=F, warning=F,results=F}
+renv::restore()
+library(ggplot2)
+library(dplyr)
+#remotes::install_github("carmonalab/scGate", ref='dev', force =T)
+library(scGate)
+#renv::snapshot()
+```
+
+
+```{r setup, echo=FALSE, message=F, warning=F, results=F}
+library(knitr)
+library(rmdformats)
+library(formatR)
+
+
+## Global options
+options(max.print="75")
+opts_chunk$set(echo=TRUE,
+	             cache=TRUE,
+               cache.lazy=FALSE,
+               prompt=FALSE,
+               tidy=TRUE,
+               comment=NA,
+               message=FALSE,
+               warning=FALSE,
+               dev='png')
+opts_knit$set(width=75)
+
+```
+
+## Load some testing datasets and models
+
+Load datasets
+```{r}
+testing.datasets <- readRDS(url("https://www.dropbox.com/s/8nugqcsjg2n26ba/testing.datasets.rds?dl=1"))
+```
+
+Load default models from DB
+```{r}
+models.DB <- scGate::get_scGateDB()
+models <- models.DB$human$human_generic  ## Human generic is a set of models trained for general purposes
+print(models%>%names)
+
+```
+
+or alternatively, you can load models from your own personalized folder
+```{r}
+# models_path = '/home/user/path_to_your_own_model_folder'
+# models <- scGate::load_models(models_path) 
+```
+
+### Have a look at some model
+```{r, fig.height= 6,fig.width= 6, message=F,results=F}
+model.name <- "Bcell"
+model <- models[[model.name]]
+plt.tree <- scGate::plot_tree(model)
+plt.tree
+```
+
+## Run an example
+```{r,collapse =T}
+# List available testing datasets:
+names(testing.datasets)
+# Select one
+dset <- "Zilionis"
+obj <- testing.datasets[[dset]]
+```
+
+
+```{r, collapse=T}
+# run scGate
+tin <- Sys.time() 
+obj <- scGate(obj, model = model, ncores = 1, keep.ranks = TRUE,
+                                             output.col.name = paste0('is.pure.',model.name))
+tfin <- Sys.time() 
+tfin-tin
+```
+
+## Visualize filtering results by layer
+
+```{r, collapse =T}
+# visualize author's manual annotations as reference labels. 
+a <- DimPlot(obj, group.by = "cell_type",label = T, repel =T ) + ggtitle("Author's manual annot")  + NoLegend()
+
+# visualize intermediate filtering results
+b <- DimPlot(obj, group.by = "is.pure.Bcell.level1") + ggtitle("scGate") + ggtitle("level 1: immune")
+d <- DimPlot(obj, group.by = "is.pure.Bcell.level2") + ggtitle("scGate") + ggtitle("level 2: lymphoid") 
+e <- DimPlot(obj, group.by = "is.pure.Bcell.level3") + ggtitle("scGate")   + ggtitle("level 3: pan-Bcell")
+f <- DimPlot(obj, group.by = "is.pure.Bcell") + ggtitle("scGate")   + ggtitle("level 4: Bcell")
+```
+
+```{r,fig.height=12,fig.width=9 }
+layout = "
+11
+11
+11
+23
+45"
+
+wrap_plots(list(a,b,d,e,f),design = layout)
+
+```
+
+## performance evaluation
+
+```{r,collapse=T}
+perf.scGate = scGate::performance.metrics(actual = obj$Bcell, pred = obj$is.pure.Bcell== "Pure")
+perf.scGate
+
+```
