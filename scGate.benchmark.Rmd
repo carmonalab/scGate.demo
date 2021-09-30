@@ -123,7 +123,7 @@ plts
 ```
 
 
-```{r,fig.width= 12, fig.height= 12}
+```{r,fig.width= 12, fig.height= 12,echo=F}
 ggsave(file.path(figure.path,"benchmark_scGate.png"), plot=plts, width=14, height=14)
 ggsave(file.path(figure.path,"benchmark_scGate.pdf"), plot=plts, width=14, height=14)
 
