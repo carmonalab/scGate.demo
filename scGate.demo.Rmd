@@ -93,6 +93,14 @@ obj <- testing.datasets[[dset]]
 obj <- scGate(obj, model = models.DB$human$generic$PanBcell, assay = DefaultAssay(obj))
 DimPlot(obj)
 ```
+#TMP
+```{r}
+more <- list()
+more$cycling <- c("TOP2A","STMN1","MKI67")
+obj <- scGate(obj, model = models.DB$human$generic$PanBcell, assay = DefaultAssay(obj), additional.signatures = more)
+DimPlot(obj)
+
+```
 
 ## Visualize filtering results by layer
 
