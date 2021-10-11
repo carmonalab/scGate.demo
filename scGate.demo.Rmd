@@ -19,7 +19,7 @@ knit: (function(input_file, encoding) {
 renv::restore()
 library(ggplot2)
 library(dplyr)
-#remotes::install_github("carmonalab/scGate", ref='dev', force =T)
+remotes::install_github("carmonalab/scGate")
 library(scGate)
 #renv::snapshot()
 ```
@@ -54,6 +54,7 @@ models.DB <- scGate::get_scGateDB()
 
 names(models.DB$human$generic)
 names(models.DB$mouse$generic)
+
 ```
 
 or alternatively, you can load models from your own personalized folder

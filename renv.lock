@@ -189,6 +189,13 @@
       "Source": "Bioconductor",
       "Hash": "cd9223fc4688653e947f1e226a9e020d"
     },
+    "PRROC": {
+      "Package": "PRROC",
+      "Version": "1.3.1",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "5506f0a5a0661ac39bfcfca702f1f282"
+    },
     "R6": {
       "Package": "R6",
       "Version": "2.5.1",
@@ -223,6 +230,13 @@
       "Source": "Repository",
       "Repository": "CRAN",
       "Hash": "cc151930e20e16427bc3d0daec62b4a9"
+    },
+    "ROCit": {
+      "Package": "ROCit",
+      "Version": "2.1.1",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "c3a24f393873289d30736a08b5ac854c"
     },
     "RSQLite": {
       "Package": "RSQLite",
@@ -421,10 +435,10 @@
     },
     "bslib": {
       "Package": "bslib",
-      "Version": "0.3.0",
+      "Version": "0.3.1",
       "Source": "Repository",
       "Repository": "CRAN",
-      "Hash": "074ebc936dbcecd7115ed8083643b550"
+      "Hash": "56ae7e1987b340186a8a5a157c2ec358"
     },
     "caTools": {
       "Package": "caTools",
@@ -539,10 +553,10 @@
     },
     "deldir": {
       "Package": "deldir",
-      "Version": "0.2-10",
+      "Version": "1.0-2",
       "Source": "Repository",
       "Repository": "CRAN",
-      "Hash": "6ba6a411bdd4c1b297bd54e2c5c98385"
+      "Hash": "5415316f437d9b53c32d698ee72e335c"
     },
     "digest": {
       "Package": "digest",
@@ -714,10 +728,10 @@
     },
     "goftest": {
       "Package": "goftest",
-      "Version": "1.2-2",
+      "Version": "1.2-3",
       "Source": "Repository",
       "Repository": "CRAN",
-      "Hash": "3c9209bce1b10900155ea37ce954cf30"
+      "Hash": "dbe0201f91eeb15918dd3fbf01ee689a"
     },
     "gplots": {
       "Package": "gplots",
@@ -972,10 +986,10 @@
     },
     "mvtnorm": {
       "Package": "mvtnorm",
-      "Version": "1.1-2",
+      "Version": "1.1-3",
       "Source": "Repository",
       "Repository": "CRAN",
-      "Hash": "6f0133c3842aef0394dbd844a21d3f5f"
+      "Hash": "7a7541cc284cb2ba3ba7eae645892af5"
     },
     "nlme": {
       "Package": "nlme",
@@ -1042,10 +1056,10 @@
     },
     "plotly": {
       "Package": "plotly",
-      "Version": "4.9.4.1",
+      "Version": "4.10.0",
       "Source": "Repository",
       "Repository": "CRAN",
-      "Hash": "af4b92cb3828aa30002e2f945c49c2d7"
+      "Hash": "fbb11e44d057996ca5fe40d959cacfb0"
     },
     "plyr": {
       "Package": "plyr",
@@ -1133,10 +1147,10 @@
     },
     "rmdformats": {
       "Package": "rmdformats",
-      "Version": "1.0.2",
+      "Version": "1.0.3",
       "Source": "Repository",
       "Repository": "CRAN",
-      "Hash": "5d278f6266f796c4bd0c3e8439d7f50d"
+      "Hash": "eff584cded25f9016463e0087436498a"
     },
     "rpart": {
       "Package": "rpart",
@@ -1174,9 +1188,9 @@
       "RemoteHost": "api.github.com",
       "RemoteRepo": "scGate",
       "RemoteUsername": "carmonalab",
-      "RemoteRef": "dev",
-      "RemoteSha": "c06adf20992c98c751f0ab6e710591a289bb2317",
-      "Hash": "bc01730811059dfe5abf4e190bd134cb"
+      "RemoteRef": "HEAD",
+      "RemoteSha": "c9f3bdb816af2250909f4ac21fb2b1768babeab8",
+      "Hash": "7343d4e211fa8879c046aaff7237c8d4"
     },
     "scales": {
       "Package": "scales",
@@ -1270,10 +1284,10 @@
     },
     "stringi": {
       "Package": "stringi",
-      "Version": "1.7.4",
+      "Version": "1.7.5",
       "Source": "Repository",
       "Repository": "CRAN",
-      "Hash": "ebaccb577da50829a3bb1b8296f318a5"
+      "Hash": "cd50dc9b449de3d3b47cdc9976886999"
     },
     "stringr": {
       "Package": "stringr",
