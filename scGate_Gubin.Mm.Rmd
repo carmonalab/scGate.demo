@@ -176,7 +176,7 @@ FeaturePlot(data.filter, features = c("Lymphoid_UCell","Tcell_UCell","Myeloid_UC
 
 Subset on T cells
 ```{r}
-data.T <- subset(data.seurat, subset=is.pure=="Pure")
+data.T <- subset(data.filter, subset=is.pure=="Pure")
 data.T
 ```
 
