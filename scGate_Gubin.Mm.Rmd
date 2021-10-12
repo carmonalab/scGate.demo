@@ -1,0 +1,205 @@
+---
+title: Apply scGate to filter cell types from Gubin et al. (2018)
+author: "M. Andreatta <massimo.andreatta at unil.ch>"
+date: "13/08/2021"
+knit: (function(input_file, encoding) {
+  out_dir <- 'docs';
+  rmarkdown::render(input_file,
+ encoding=encoding,
+ output_file=file.path(dirname(input_file), out_dir, 'index.html'))})
+#output: html_notebook
+---
+
+###  
+Load packages and source files (custom functions)
+```{r, message=FALSE, warning=F, results=FALSE}
+renv::restore()
+#remotes::install_github("carmonalab/UCell")
+#remotes::install_github("carmonalab/scGate")
+
+library(gridExtra)
+library(ggplot2)
+library(reshape2)
+library(GEOquery)
+library(Seurat)
+library(scGate)
+```
+
+```{r}
+do_download <- T
+
+geo_acc <- "GSE119352"
+
+gse <- getGEO(geo_acc)
+datadir <- "input/Gubin"
+dir.create(datadir)
+
+series <- paste0(geo_acc, "_series_matrix.txt.gz")
+if(do_download){
+  getGEOSuppFiles(geo_acc,baseDir=datadir)
+  system(paste0("gunzip ",datadir,"/",geo_acc,"/*meta_data.tsv.gz")) 
+  
+  for (acc in gse[[series]]$geo_accession) {
+    system(paste0("mkdir ",datadir,"/",acc))
+    getGEOSuppFiles(acc,baseDir=datadir) #untar...
+
+    fns <- list.files(paste0(datadir,"/",acc,"/"))
+    for (fn in fns){  #rename to basic names: matrix, genes, barcodes
+      system(paste0("mv ",paste0(datadir,"/",acc,"/",fn)," ",paste0(datadir,"/",acc,"/",sub(".*_","",fn,perl = T))))
+    }
+    system(paste0("gunzip ",datadir,"/",acc,"/*gz"))
+    
+  }
+}
+
+geoAccToName <- gse[[1]]$title
+names(geoAccToName) <-  gse[[1]]$geo_accession
+geoAccToName
+```
+
+Read the sparse count matrices 
+```{r readMatrix}
+data.list <- list()
+
+for (i in 1:length(gse[[series]]$geo_accession)) {
+   acc = gse[[series]]$geo_accession[i]
+   fname <- paste0(datadir,"/",acc)
+   data <- Read10X(fname)
+   title <- gse[[1]]$title[i]
+   
+   c <- gsub(pattern="(\\S+)", replacement=paste0("GU-\\1-",i), colnames(data), perl=TRUE)
+   colnames(data) <- c
+   
+   tmp.seurat <- CreateSeuratObject(counts = data, project = "Gubin", min.cells = 3, min.features = 50)
+   tmp.seurat@meta.data$Sample <- acc
+   tmp.seurat@meta.data$Condition <- title
+   
+   data.list[[title]] <- tmp.seurat
+   rm(tmp.seurat)
+}
+
+names(data.list)
+
+data.list[[1]]$Treatment <- "Control" 
+data.list[[2]]$Treatment <- "aPD1"
+data.list[[3]]$Treatment <- "aCTLA4"
+data.list[[4]]$Treatment <- "aPD1_aCTLA4"
+
+data.seurat <- Reduce(merge, data.list)
+
+data.seurat
+table(data.seurat$Condition)
+table(data.seurat$Sample)
+table(data.seurat$Treatment)
+
+Idents(data.seurat) <- 'Treatment'
+```
+
+Basic quality control
+```{r fig.height=3}
+percent.ribo.dv <- PercentageFeatureSet(data.seurat, pattern = "^Rp[ls]")
+percent.mito.dv <- PercentageFeatureSet(data.seurat, pattern = "^mt-")
+
+data.seurat <- AddMetaData(data.seurat, metadata = percent.ribo.dv, col.name = "percent.ribo")
+data.seurat <- AddMetaData(data.seurat, metadata = percent.mito.dv, col.name = "percent.mito")
+
+pl <- VlnPlot(data.seurat, features = c("nFeature_RNA", "nCount_RNA","percent.ribo","percent.mito"), ncol = 2, pt.size=0.01, combine=FALSE)
+
+pll <- list()
+for (i in seq_along(pl)) {
+   pll[[i]] = pl[[i]] + theme(axis.text.x = element_blank(), legend.position = "none")
+}
+
+wrap_plots(pll)
+```
+
+Remove outliers
+```{r}
+dim(data.seurat)
+data.seurat <- subset(data.seurat, subset = nFeature_RNA>500 & nFeature_RNA<4000 & 
+                       nCount_RNA>1000 & nCount_RNA<15000 &
+                       percent.ribo < 50 & percent.mito < 10)
+dim(data.seurat)
+
+```
+
+
+#Dimensionality reduction
+
+```{r}
+ndim=30
+set.seed(1234)
+
+data.seurat <- NormalizeData(data.seurat, verbose = FALSE)
+data.seurat <- FindVariableFeatures(data.seurat, selection.method = "vst", nfeatures = 1000, verbose = FALSE)
+bk.list <- unlist(scGate::genes.blacklist.default$Mm)     
+
+data.seurat@assays$RNA@var.features <- setdiff(data.seurat@assays$RNA@var.features, bk.list)
+
+data.seurat <- ScaleData(data.seurat)
+data.seurat <- RunPCA(data.seurat, features = data.seurat@assays$RNA@var.features, ndims.print = 1:5, nfeatures.print = 5, npcs = ndim)
+
+data.seurat <- RunUMAP(data.seurat, reduction = "pca", dims = 1:ndim, seed.use=123)
+DimPlot(data.seurat, reduction = "umap", group.by = "Treatment") + ggtitle("UMAP by sample")
+```
+
+
+```{r, fig.height=12, fig.width=9}
+features=c("Ptprc","Lck","Csf1r","Cd3e","Foxp3","Cd8a","Cd4","H2-Eb1","H2-Aa","Cd300e",
+           "Itgal","C1qa","C1qb","Gpnmb","Fabp5","Saa3", "Csf3r","S100a9",
+           "Clec10a","Irf8","Ccr7","Plac8","Xcr1","Spi1",
+           "Siglech","Ccr9","nCount_RNA","nFeature_RNA")
+
+a <- FeaturePlot(data.seurat, reduction="umap", features=features, order = T,ncol = 4)
+plot(a)
+```
+
+Filter on T cells
+```{r}
+models <- scGate::get_scGateDB()
+
+data.filter <- scGate(data.seurat, model = models$mouse$generic$Tcell.alphabeta)
+
+DimPlot(data.filter)
+```
+More plots
+```{r}
+pll <- list()
+pure.levels <- grep("is.pure.level", colnames(data.filter@meta.data), value=T)
+for (lev in pure.levels) {
+  pll[[lev]] <- DimPlot(data.filter, group.by = lev)
+}
+wrap_plots(pll, ncol = 2)
+
+FeaturePlot(data.filter, features = c("Lymphoid_UCell","Tcell_UCell","Myeloid_UCell","NK_UCell"))
+```
+
+Subset on T cells
+```{r}
+data.T <- subset(data.seurat, subset=is.pure=="Pure")
+data.T
+```
+
+
+# Isolate MoMacDC cells
+```{r}
+models <- scGate::get_scGateDB()
+
+data.filter <- scGate(data.seurat, model=models$mouse$generic$MoMacDC)
+
+DimPlot(data.filter)
+```
+
+More plots
+```{r}
+pll <- list()
+pure.levels <- grep("is.pure.level", colnames(data.filter@meta.data), value=T)
+for (lev in pure.levels) {
+  pll[[lev]] <- DimPlot(data.filter, group.by = lev)
+}
+wrap_plots(pll, ncol = 2)
+
+FeaturePlot(data.filter, features = c("Myeloid_UCell","MoMacDC_UCell","Neutrophils_UCell","Tcell_UCell"))
+```
+
+
