@@ -49,10 +49,11 @@ opts_knit$set(width=75)
 ## Load some testing datasets and models
 
 Load default models from DB
-```{r}
+```{r,collapse=TRUE}
 models.DB <- scGate::get_scGateDB()
 
 names(models.DB$human$generic)
+
 names(models.DB$mouse$generic)
 
 ```
@@ -73,7 +74,6 @@ plt.tree
 
 
 ## Run an example
-#NOTE: I think these have too few cells, can we make them 1000 or 2000?
 ```{r}
 testing.datasets <- readRDS(url("https://www.dropbox.com/s/8nugqcsjg2n26ba/testing.datasets.rds?dl=1"))
 ```
@@ -105,10 +105,10 @@ DimPlot(obj)
 
 ## Visualize filtering results by layer
 
-```{r,fig.height=8,fig.width=6 }
+```{r,fig.height=8,fig.width=10 }
 myCols <- grep("is.pure.", colnames(obj@meta.data),value = T)
 plots <- list()
-plots[["annotation"]] <- DimPlot(obj, group.by = "cell_type",label = T, repel =T) + ggtitle("Author's manual annot") + NoLegend()
+plots[["annotation"]] <- DimPlot(obj, group.by = "cell_type",label = T, repel =T,label.size = 3) + ggtitle("Author's manual annot") + NoLegend() 
 for (myCol in myCols){
     plots[[myCol]] <- DimPlot(obj, group.by = myCol)
 }
