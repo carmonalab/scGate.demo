@@ -75,7 +75,7 @@ plt.tree
 
 ## Run an example
 ```{r}
-testing.datasets <- readRDS(url("https://www.dropbox.com/s/8nugqcsjg2n26ba/testing.datasets.rds?dl=1"))
+testing.datasets <- readRDS(url("https://www.dropbox.com/s/vl527ko9m43xmj0/testing.datasets.2k.rds?dl=1"))
 ```
 
 ```{r,collapse =T}
