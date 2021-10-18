@@ -120,3 +120,35 @@ wrap_plots(plots, ncol = 2)
 perf.scGate = scGate::performance.metrics(actual = obj$PanBcell, pred = obj$is.pure== "Pure")
 perf.scGate
 ```
+
+## fast evaluation of model modifications
+```{r,fig.width=16,fig.height=12,collapse = T, message = F}
+# first, get model performance for a current model on available testing data
+model.panBcell <- models.DB$human$generic$PanBcell
+panBcell.performance <- test_my_model(model.panBcell, testing.version = 'hsa.latest',target = "PanBcell")
+panBcell.performance$performance
+```
+
+Now, you can performe some model modifications
+```{r,collapse=T, echo =F, results=F,message =F}
+# Some (absurd) model modification
+my.custom.model <- model.panBcell
+my.custom.model%>%tail(3)
+## REMOVE negative Tcell layer in last level (it make no sense, but we do it only for demonstrative purposes)
+my.custom.model <- my.custom.model[-18,]   
+my.custom.model%>%tail(3)
+```
+
+And evaluate this consecuences in a fast way.
+```{r,collapse = T, echo =F, results=F, message =F}
+## Evaluate how the new model performs
+new.model.performance <- test_my_model(my.custom.model, testing.version = 'hsa.latest',target = "PanBcell",PLOT = F)
+new.model.performance$performance  
+
+# Notice: dropping a releant negative signature in the last level of your model, do not affect the model recall, but precision get worst in all the provided datasets.
+```
+
+
+
+
+
