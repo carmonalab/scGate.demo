@@ -78,7 +78,7 @@ plt.tree
 
 ## Run an example
 ```{r}
-testing.datasets <- readRDS(url("https://www.dropbox.com/s/vl527ko9m43xmj0/testing.datasets.2k.rds?dl=1"))
+testing.datasets <- scGate:::get_testing_data(version = 'hsa.latest')
 ```
 
 ```{r,collapse =T}
