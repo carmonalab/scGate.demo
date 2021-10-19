@@ -19,9 +19,9 @@ knit: (function(input_file, encoding) {
 renv::restore()
 library(ggplot2)
 library(dplyr)
-remotes::install_github("carmonalab/scGate")
+library(patchwork)
+remotes::install_github("carmonalab/scGate",ref = "dev")
 library(scGate)
-#renv::snapshot()
 ```
 
 
@@ -46,6 +46,9 @@ opts_knit$set(width=75)
 
 ```
 
+
+
+
 ## Load some testing datasets and models
 
 Load default models from DB
@@ -61,13 +64,13 @@ names(models.DB$mouse$generic)
 or alternatively, you can load models from your own personalized folder
 ```{r}
 # models_path = '/home/user/custom_model'
-# models <- scGate::load_models(models_path) 
+# models <- scGate::load_scGate_model(models_path) 
 ```
 
 ### Have a look at some model (for B cells and plasma cells)
 ```{r message=F,results=F}
-model <- models.DB$human$generic$PanBcell
-plt.tree <- scGate::plot_tree(model)
+my_scGate_model <- models.DB$human$generic$PanBcell
+plt.tree <- scGate::plot_tree(my_scGate_model)
 plt.tree
 ```
 
@@ -84,34 +87,20 @@ names(testing.datasets)
 # Select one
 dset <- "Zilionis"
 obj <- testing.datasets[[dset]]
-
-
 ```
 
 
 ```{r, collapse=T}
 # run scGate
-obj <- scGate(obj, model = models.DB$human$generic$PanBcell, assay = DefaultAssay(obj))
+obj <- scGate(obj, model = my_scGate_model, assay = DefaultAssay(obj))
 DimPlot(obj)
-```
-#TMP
-```{r}
-more <- list()
-more$cycling <- c("TOP2A","STMN1","MKI67")
-obj <- scGate(obj, model = models.DB$human$generic$PanBcell, assay = DefaultAssay(obj), additional.signatures = more)
-DimPlot(obj)
-
 ```
 
 ## Visualize filtering results by layer
 
 ```{r,fig.height=8,fig.width=10 }
-myCols <- grep("is.pure.", colnames(obj@meta.data),value = T)
-plots <- list()
+plots <- scGate::plot_levels(obj)
 plots[["annotation"]] <- DimPlot(obj, group.by = "cell_type",label = T, repel =T,label.size = 3) + ggtitle("Author's manual annot") + NoLegend() 
-for (myCol in myCols){
-    plots[[myCol]] <- DimPlot(obj, group.by = myCol)
-}
 wrap_plots(plots, ncol = 2)
 ```
 
@@ -124,15 +113,15 @@ perf.scGate
 ## fast evaluation of model modifications
 ```{r,fig.width=16,fig.height=12,collapse = T, message = F}
 # first, get model performance for a current model on available testing data
-model.panBcell <- models.DB$human$generic$PanBcell
-panBcell.performance <- test_my_model(model.panBcell, testing.version = 'hsa.latest',target = "PanBcell")
+my_scGate_model <- models.DB$human$generic$PanBcell
+panBcell.performance <- test_my_model(my_scGate_model, target = "PanBcell")
 panBcell.performance$performance
 ```
 
-Now, you can performe some model modifications
+Now, you can perform some model modifications
 ```{r,collapse=T, echo =F, results=F,message =F}
 # Some (absurd) model modification
-my.custom.model <- model.panBcell
+my.custom.model <- my_scGate_model
 my.custom.model%>%tail(3)
 ## REMOVE negative Tcell layer in last level (it make no sense, but we do it only for demonstrative purposes)
 my.custom.model <- my.custom.model[-18,]   

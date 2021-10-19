@@ -1227,18 +1227,6 @@
       "Repository": "CRAN",
       "Hash": "50cf822feb64bb3977bda0b7091be623"
     },
-    "scGate": {
-      "Package": "scGate",
-      "Version": "1.0.0",
-      "Source": "GitHub",
-      "RemoteType": "github",
-      "RemoteHost": "api.github.com",
-      "RemoteRepo": "scGate",
-      "RemoteUsername": "carmonalab",
-      "RemoteRef": "HEAD",
-      "RemoteSha": "63ecef02afc6f7b0b0d78950a539f4ad1c434ede",
-      "Hash": "dedf7e2315a7dc3680a970f6c8cba878"
-    },
     "scales": {
       "Package": "scales",
       "Version": "1.1.1",
