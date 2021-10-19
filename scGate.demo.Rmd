@@ -138,6 +138,36 @@ new.model.performance$performance
 Notice: dropping a relevant negative signature in the last level of your model, do not affect model recall, but precision get worst in all the provided datasets.
 
 
+## Model creation from scratch
+```{r}
+my_model <- edit_model()  # model initizlization
+# add a first signature
+my_model <- edit_model(model = my_model, 
+                       level = 1, positive = T, name = "immune", signature = c("PTPRC"))
+
+my_model <- edit_model(model = my_model, 
+                       level = 1, positive = F, name = "Epithelial", signature = c("CDH1","FLT1") )
+
+
+
+my_model
+
+```
+
+
+You can also use this function to remove some signature given its level and name (remove =T)
+```{r}
+dropped_model <- edit_model(model = my_model, remove =TRUE, level = 1, name = "Epithelial")
+dropped_model
+```
+
+
+You can edit a given signature 
+```{r}
+model_imputed <- edit_signature(model = my_model, level = 1, name = "Epithelial", signature = c("CDH1","FLT1"),method = "replace" )
+model_imputed
+```
+
 
 
 
