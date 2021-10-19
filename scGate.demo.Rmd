@@ -93,7 +93,7 @@ obj <- testing.datasets[[dset]]
 ```{r, collapse=T}
 # run scGate
 obj <- scGate(obj, model = my_scGate_model, assay = DefaultAssay(obj))
-DimPlot(obj)
+DimPlot(obj, cols = c(list(Impure = "gray", Pure = "#00ae60")))
 ```
 
 ## Visualize filtering results by layer
