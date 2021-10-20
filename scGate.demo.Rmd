@@ -49,7 +49,115 @@ opts_knit$set(width=75)
 
 
 
-## Load some testing datasets and models
+## Load some testing datasets 
+```{r}
+testing.datasets <- scGate:::get_testing_data(version = 'hsa.latest')
+```
+
+```{r,collapse =T, fig.width=7}
+# List available testing datasets:
+names(testing.datasets)
+# Select one
+dset <- "Zilionis"
+dset <- "Satija"
+obj <- testing.datasets[[dset]]
+DimPlot(obj, label = T, repel = T, group.by = "cell_type")
+#FeaturePlot(obj,features = c("FOXP3","CD8B"))
+```
+Set up a simple gating model to test scGate and purify, for instance, platelts (then pDC, lymphoid, myeloid, B cells, Tregs)
+
+## Simple gating model definition
+```{r}
+my_scGate_model <- edit_model()  # model initizlization
+# add a first signature
+
+#my_scGate_model <- edit_model(model = my_scGate_model, name = "Bcell", signature = c("MS4A1"))
+my_scGate_model <- edit_model(model = my_scGate_model, level = 1, positive = T, name = "Bcell", signature = c("MS4A1"))
+my_scGate_model <- edit_model(model = my_scGate_model, level = 1, positive = F, name = "platelet", signature = c("PPBPelotudo"))
+
+
+```
+
+
+## Purify cell population of interest with scGate
+```{r, collapse=T}
+# run scGate
+obj <- scGate(data = obj, model = my_scGate_model, assay = DefaultAssay(obj))
+DimPlot(obj, cols = c(list(Impure = "gray", Pure = "#00ae60")))
+#test_my_model(my_scGate_model, target = "CD8T")
+#performance.metrics(actual = "CD8T", pred = obj$is.pure== "Pure")
+```
+
+
+```{r}
+my_scGate_model <- edit_model()  # model initizlization
+#my_scGate_model <- edit_model(model = my_scGate_model, name = "Tcell", signature = c("CD3D","CD3G"))
+#my_scGate_model <- edit_model(model = my_scGate_model, name = "platelet", signature = c("PPBP"), negative=T)
+my_scGate_model <- edit_model(model = my_scGate_model, level = 1, positive = T, name = "immune", signature = c("PTPRC"))
+my_scGate_model <- edit_model(model = my_scGate_model, level = 1, positive = F, name = "platelet", signature = c("PPBP"))
+
+
+```
+
+## Purify cell population of interest with scGate
+```{r, collapse=T}
+# run scGate
+obj <- scGate(data = obj, model = my_scGate_model, assay = DefaultAssay(obj))
+DimPlot(obj, cols = c(list(Impure = "gray", Pure = "#00ae60")))
+#test_my_model(my_scGate_model, target = "CD8T")
+#performance.metrics(actual = "CD8T", pred = obj$is.pure== "Pure")
+```
+```{r}
+my_scGate_model <- edit_model()  # model initizlization
+#my_scGate_model <- edit_model(model = my_scGate_model, name = "Tcell", signature = c("CD3D","CD3G"))
+#my_scGate_model <- edit_model(model = my_scGate_model, name = "platelet", signature = c("PPBP"), negative=T)
+my_scGate_model <- edit_model(model = my_scGate_model, level = 1, positive = T, name = "immune", signature = c("PTPRC"))
+my_scGate_model <- edit_model(model = my_scGate_model, level = 1, positive = F, name = "platelet", signature = c("PPBP"))
+
+
+```
+
+## Purify cell population of interest with scGate
+```{r, collapse=T}
+# run scGate
+obj <- scGate(data = obj, model = my_scGate_model, assay = DefaultAssay(obj))
+DimPlot(obj, cols = c(list(Impure = "gray", Pure = "#00ae60")))
+#test_my_model(my_scGate_model, target = "CD8T")
+#performance.metrics(actual = "CD8T", pred = obj$is.pure== "Pure")
+```
+
+```{r, eval=F}
+
+my_scGate_model <- edit_model(model = my_scGate_model, name = "Tcell", signature = c("CD3D","CD3G"))
+my_scGate_model <- edit_model(model = my_scGate_model, name = "platelet", signature = c("PPBP"), negative=T)
+my_scGate_model <- edit_model(model = my_scGate_model, name = "CD8", signature = c("CD8A","CD8B1"), level=2)
+
+
+my_scGate_model <- edit_model(model = my_scGate_model, name = "Tcell", signature = c("CD3D","CD3G"), level=1, positive=T)
+my_scGate_model <- edit_model(model = my_scGate_model, name = "platelet", signature = c("PPBP"), level=1, positive=F)
+my_scGate_model <- edit_model(model = my_scGate_model, name = "CD8", signature = c("CD8A","CD8B"), level=2, positive=T)
+my_scGate_model <- edit_model(model = my_scGate_model, level = 2, positive = F, name = "platelet", signature = c("PPBPelotudo"))
+
+
+
+#my_scGate_model <- edit_model(model = my_scGate_model, level = 1, positive = F, name = "platelet", signature = c("PPBP"))
+
+#my_scGate_model <- edit_model(model = my_scGate_model, level = 1, positive = T, name = "platelet", signature = c("PPBP"))
+
+#my_scGate_model <- edit_model(model = my_scGate_model, level = 1, positive = T, name = "Bcell", signature = c("MS4A1"))
+#my_scGate_model <- edit_model(model = my_scGate_model, level = 1, positive = F, name = "platelet", signature = c("PPBP"))
+my_scGate_model <- edit_model(model = my_scGate_model, level = 1, positive = F, name = "platelet", signature = c("PPBPelotudo"))
+
+#my_scGate_model <- edit_model(model = my_scGate_model, level = 1, positive = T, name = "immune", signature = c("PTPRC"))
+#my_scGate_model <- edit_model(model = my_scGate_model, level = 2, positive = T, name = "lymhpid", signature = c("LCK"))
+
+#my_scGate_model <- edit_model(model = my_scGate_model, level = 1, positive = T, name = "immune", signature = c("PTPRC"))
+#my_scGate_model <- edit_model(model = my_scGate_model, level = 1, positive = F, name = "platelet", signature = c("PPBP"))
+#my_scGate_model <- edit_model(model = my_scGate_model, level = 1, positive = T, name = "Tcell", signature = c("CD3E","CD3D"))
+#my_scGate_model <- edit_model(model = my_scGate_model, level = 1, positive = F, name = "myeloid", signature = c("SPI1"))
+
+```
+
 
 Load default models from DB
 ```{r,collapse=TRUE}
@@ -61,13 +169,15 @@ names(models.DB$mouse$generic)
 
 ```
 
-or alternatively, you can load models from your own personalized folder
+or alternatively, you can load models from your local folder (you can manually edit the models in Excel)
 ```{r}
 # models_path = '/home/user/custom_model'
 # models <- scGate::load_scGate_model(models_path) 
 ```
 
 ### Have a look at some model (for B cells and plasma cells)
+
+TODO: plot_tree only run for level > 1
 ```{r message=F,results=F}
 my_scGate_model <- models.DB$human$generic$PanBcell
 plt.tree <- scGate::plot_tree(my_scGate_model)
@@ -77,22 +187,9 @@ plt.tree
 
 
 ## Run an example
-```{r}
-testing.datasets <- scGate:::get_testing_data(version = 'hsa.latest')
-```
-
-```{r,collapse =T}
-# List available testing datasets:
-names(testing.datasets)
-# Select one
-dset <- "Zilionis"
-obj <- testing.datasets[[dset]]
-```
-
-
 ```{r, collapse=T}
 # run scGate
-obj <- scGate(obj, model = my_scGate_model, assay = DefaultAssay(obj))
+obj <- scGate(obj, model = my_scGate_model)
 DimPlot(obj, cols = c(list(Impure = "gray", Pure = "#00ae60")))
 ```
 
