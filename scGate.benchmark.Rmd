@@ -19,7 +19,7 @@ knit: (function(input_file, encoding) {
 renv::restore()
 library(ggplot2)
 library(dplyr)
-#remotes::install_github("carmonalab/scGate", ref='dev', force =T)
+remotes::install_github("carmonalab/scGate", ref='dev')
 library(scGate)
 #renv::snapshot()
 ```
@@ -52,7 +52,7 @@ figure.path <- "~/Dropbox/CSI/PAPERS/scGate/Figures"
 
 Load datasets
 ```{r}
-testing.datasets <- readRDS(url("https://www.dropbox.com/s/8nugqcsjg2n26ba/testing.datasets.rds?dl=1"))
+testing.datasets <- scGate:::get_testing_data(version = 'hsa.latest')
 ```
 
 Load default models from DB
