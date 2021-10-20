@@ -58,7 +58,7 @@ testing.datasets <- scGate:::get_testing_data(version = 'hsa.latest')
 # List available testing datasets:
 names(testing.datasets)
 # Select one
-dset <- "Zilionis"
+#dset <- "Zilionis"
 dset <- "Satija"
 obj <- testing.datasets[[dset]]
 DimPlot(obj, label = T, repel = T, group.by = "cell_type")
@@ -68,13 +68,11 @@ Set up a simple gating model to test scGate and purify, for instance, platelts (
 
 ## Simple gating model definition
 ```{r}
-my_scGate_model <- edit_model()  # model initizlization
+# model initizlization
+my_scGate_model <- edit_model()  
+
 # add a first signature
-
-#my_scGate_model <- edit_model(model = my_scGate_model, name = "Bcell", signature = c("MS4A1"))
-my_scGate_model <- edit_model(model = my_scGate_model, level = 1, positive = T, name = "Bcell", signature = c("MS4A1"))
-my_scGate_model <- edit_model(model = my_scGate_model, level = 1, positive = F, name = "platelet", signature = c("PPBPelotudo"))
-
+my_scGate_model <- edit_model(model = my_scGate_model, name = "Bcell", signature = c("MS4A1"))
 
 ```
 
@@ -84,47 +82,65 @@ my_scGate_model <- edit_model(model = my_scGate_model, level = 1, positive = F, 
 # run scGate
 obj <- scGate(data = obj, model = my_scGate_model, assay = DefaultAssay(obj))
 DimPlot(obj, cols = c(list(Impure = "gray", Pure = "#00ae60")))
-#test_my_model(my_scGate_model, target = "CD8T")
-#performance.metrics(actual = "CD8T", pred = obj$is.pure== "Pure")
 ```
 
+# Another example for gating Tcells
+```{r}
+# simple model building 
+my_scGate_model <- edit_model()  # model initizlization
+my_scGate_model <- edit_model(model = my_scGate_model, name = "Tcell", signature = c("CD3D","CD3G"),)  # add one positive signature
+
+# run the model
+obj <- scGate(data = obj, model = my_scGate_model, assay = DefaultAssay(obj))
+DimPlot(obj, cols = c(list(Impure = "gray", Pure = "#00ae60")))
+```
+That simple model works fine detecting TCells but also display some contamination with platelets. We can add a negative signature at the same level model in order to improve precision. 
 
 ```{r}
-my_scGate_model <- edit_model()  # model initizlization
-#my_scGate_model <- edit_model(model = my_scGate_model, name = "Tcell", signature = c("CD3D","CD3G"))
-#my_scGate_model <- edit_model(model = my_scGate_model, name = "platelet", signature = c("PPBP"), negative=T)
-my_scGate_model <- edit_model(model = my_scGate_model, level = 1, positive = T, name = "immune", signature = c("PTPRC"))
-my_scGate_model <- edit_model(model = my_scGate_model, level = 1, positive = F, name = "platelet", signature = c("PPBP"))
+#add one negative signature setting negative = T
+my_scGate_model <- edit_model(model = my_scGate_model, name = "platelet", signature = c("PPBP"), negative=T)
 
-
-```
-
-## Purify cell population of interest with scGate
-```{r, collapse=T}
-# run scGate
+# run the model
 obj <- scGate(data = obj, model = my_scGate_model, assay = DefaultAssay(obj))
 DimPlot(obj, cols = c(list(Impure = "gray", Pure = "#00ae60")))
-#test_my_model(my_scGate_model, target = "CD8T")
-#performance.metrics(actual = "CD8T", pred = obj$is.pure== "Pure")
-```
-```{r}
-my_scGate_model <- edit_model()  # model initizlization
-#my_scGate_model <- edit_model(model = my_scGate_model, name = "Tcell", signature = c("CD3D","CD3G"))
-#my_scGate_model <- edit_model(model = my_scGate_model, name = "platelet", signature = c("PPBP"), negative=T)
-my_scGate_model <- edit_model(model = my_scGate_model, level = 1, positive = T, name = "immune", signature = c("PTPRC"))
-my_scGate_model <- edit_model(model = my_scGate_model, level = 1, positive = F, name = "platelet", signature = c("PPBP"))
-
-
 ```
 
-## Purify cell population of interest with scGate
+## Take advantage of hierarchical structure of scGate models: 
+Some celltypes like XXX could be dificult to isolate in a precise way at once filter step
 ```{r, collapse=T}
-# run scGate
-obj <- scGate(data = obj, model = my_scGate_model, assay = DefaultAssay(obj))
-DimPlot(obj, cols = c(list(Impure = "gray", Pure = "#00ae60")))
-#test_my_model(my_scGate_model, target = "CD8T")
-#performance.metrics(actual = "CD8T", pred = obj$is.pure== "Pure")
+#model.only1layer <- edit_model()  # model initizlization
+#model.only1layer <- edit_model(model = model.only1layer, name = "XX", signature = c(""))
+
+#obj <- scGate(data = obj, model = model.only1layer, assay = DefaultAssay(obj))
+#DimPlot(obj, cols = c(list(Impure = "gray", Pure = "#00ae60")))
+
 ```
+
+
+```{r, collapse=T}
+#hierachical.model <- edit_model()  # model initizlization
+# Layer 1: retrive myeloid cells
+#hierachical.model <- edit_model(model = hierachical.model, name = "Limphoid", signature = "LCK")
+#hierachical.model <- edit_model(model = hierachical.model, name = "Myeloid", negative = T,  signature = "SPI1")
+
+# Layer 2: retain NK cells
+#hierachical.model <- edit_model(model = hierachical.model, level = 2, name = "XX", signature =  c(""))
+
+
+#model visuzliation
+
+#plot_tree(hierarchical.model)
+```
+
+Filtering
+```{r, collapse=T}
+#obj <- scGate(data = obj, model = hierarchical.model, assay = DefaultAssay(obj))
+#DimPlot(obj, cols = c(list(Impure = "gray", Pure = "#00ae60")))
+
+```
+
+#####
+
 
 ```{r, eval=F}
 
@@ -136,7 +152,6 @@ my_scGate_model <- edit_model(model = my_scGate_model, name = "CD8", signature =
 my_scGate_model <- edit_model(model = my_scGate_model, name = "Tcell", signature = c("CD3D","CD3G"), level=1, positive=T)
 my_scGate_model <- edit_model(model = my_scGate_model, name = "platelet", signature = c("PPBP"), level=1, positive=F)
 my_scGate_model <- edit_model(model = my_scGate_model, name = "CD8", signature = c("CD8A","CD8B"), level=2, positive=T)
-my_scGate_model <- edit_model(model = my_scGate_model, level = 2, positive = F, name = "platelet", signature = c("PPBPelotudo"))
 
 
 
@@ -146,7 +161,6 @@ my_scGate_model <- edit_model(model = my_scGate_model, level = 2, positive = F, 
 
 #my_scGate_model <- edit_model(model = my_scGate_model, level = 1, positive = T, name = "Bcell", signature = c("MS4A1"))
 #my_scGate_model <- edit_model(model = my_scGate_model, level = 1, positive = F, name = "platelet", signature = c("PPBP"))
-my_scGate_model <- edit_model(model = my_scGate_model, level = 1, positive = F, name = "platelet", signature = c("PPBPelotudo"))
 
 #my_scGate_model <- edit_model(model = my_scGate_model, level = 1, positive = T, name = "immune", signature = c("PTPRC"))
 #my_scGate_model <- edit_model(model = my_scGate_model, level = 2, positive = T, name = "lymhpid", signature = c("LCK"))
