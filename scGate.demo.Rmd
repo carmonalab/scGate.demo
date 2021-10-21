@@ -17,6 +17,7 @@ knit: (function(input_file, encoding) {
 ## Setup environment
 
 ```{r, message=F, warning=F,results=F}
+renv::activate()
 renv::restore()
 library(ggplot2)
 library(dplyr)
@@ -79,6 +80,7 @@ my_scGate_model
 obj <- scGate(data = obj, model = my_scGate_model, assay = DefaultAssay(obj))
 DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1) 
 ```
+
 Because in this demo example we know the ground truth (at least, as defined by the authors), let's evaluate scGate predictive performance in terms of precision/positive predictive value, recall/sensitivity, and accuracy using Matthews Correlation Coefficient (MCC)
 ```{r}
 scGate::performance.metrics(grepl("^B ",obj$cell_type),obj$is.pure=="Pure")
@@ -93,7 +95,8 @@ my_scGate_model <- edit_model(model = my_scGate_model, name = "pDC", signature =
 
 # run the model
 obj <- scGate(data = obj, model = my_scGate_model, assay = DefaultAssay(obj))
-DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1) 
+DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1)
+
 ```
 
 ```{r}
@@ -164,8 +167,6 @@ scGate::performance.metrics(obj$cell_type %in% c("Macrophage"),obj$is.pure=="Pur
 Here we isolated 92% of macrophages with a 90% purity (according to annotation by Jerby-Arnon et al). We could easiliy improve PREC and REC by adding more positive and negative markers, respectively (e.g. removing lymphocytes)
 
 
-TODO: add + theme(aspect.ratio = 1) to plots_levels and Pure color to 'green'
-
 We can see how the two-level gating model worked in each step using scGate's plot_levels.
 We see on the left the immune cell purification step, and on the right, the macrophage purifications step.
 ```{r}
@@ -187,7 +188,7 @@ my_scGate_model_edited <- scGate::load_scGate_model("test.tsv") # tabulated-text
 
 We provide a built-in function `test_my_model` to automatically evaluate the performance of a gating model using 3 pre-annotated testing datasets:
 
-```{r, fig.width=16,fig.height=12,collapse = T, message = F}
+```{r, fig.width=8,fig.height=12,collapse = T, message = F}
 my_scGate_model <- edit_model()  
 my_scGate_model <- edit_model(model = my_scGate_model, name = "Bcell", signature = c("MS4A1"))
 panBcell.performance <- test_my_model(my_scGate_model, target = "Bcell")
@@ -196,7 +197,7 @@ panBcell.performance$performance
 
 We see that in one of the datsets this simple model did not have an excellent precision (85%).
 We can refine it, for instance by removing potentially contaminat T cell genes (CD3D) and try again
-```{r}
+```{r, fig.width=8,fig.height=12,collapse = T, message = F}
 my_scGate_model <- edit_model(model = my_scGate_model, name = "Tcell", signature = c("CD3D"),negative = T)
 panBcell.performance <- test_my_model(my_scGate_model, target = "Bcell")
 panBcell.performance$performance
