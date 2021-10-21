@@ -1,5 +1,5 @@
 ---
-title: "Intuitive Immune Isolation of cell types with scGate. Basic examples"
+title: "Purification of cell types from complex single-cell RNA-seq data. Basic examples."
 author: "M. Andreatta, A. Berenstein and S. Carmona"
 date: "29/09/2021"
 output:
@@ -14,6 +14,7 @@ knit: (function(input_file, encoding) {
  output_file=file.path(dirname(input_file), out_dir, 'scGate.basic.usage.html'))})
 ---
 
+## Setup environment
 
 ```{r, message=F, warning=F,results=F}
 renv::restore()
@@ -47,7 +48,7 @@ opts_knit$set(width=75)
 ```
 
 
-## Load some testing datasets 
+## Load demo datasets 
 ```{r}
 testing.datasets <- scGate:::get_testing_data(version = 'hsa.latest')
 ```
@@ -58,10 +59,11 @@ obj <- testing.datasets[["Satija"]]
 DimPlot(obj, label = T, repel = T, group.by = "cell_type") + theme(legend.position = "none", aspect.ratio = 1) 
 ```
 
-Set up a simple scGate gating model to purify a population of interest, for instance, B cells.
+## Creating a simple gating model
+
+Now let's setup a simple scGate gating model to purify a population of interest, for instance, B cells.
 B cells are usually identified by the expression of CD20, encoded by MS4A1
 
-## Simple gating model definition
 ```{r}
 # model initizlization
 my_scGate_model <- edit_model()  
@@ -71,7 +73,7 @@ my_scGate_model <- edit_model(model = my_scGate_model, name = "Bcell", signature
 my_scGate_model
 ```
 
-## Purify cell population of interest with scGate
+## Purify a cell population of interest with scGate
 ```{r, collapse=T}
 # run scGate
 obj <- scGate(data = obj, model = my_scGate_model, assay = DefaultAssay(obj))
@@ -84,7 +86,24 @@ scGate::performance.metrics(grepl("^B ",obj$cell_type),obj$is.pure=="Pure")
 With this very simple model, >99% (Recall) are isolated with a >99% purity (Precision), and and overall accuracy/MCC >99%
 
 
-# Another example for gating NKs, which express KLRD1. However, KLRD1 can also be expreseed by some T cell subsets, so we can filter these out by including "negative" T cell markers such as CD3D or CD3G
+In another example, let's gate plasmacytoid dendritic cells (pDCs), which can be isolated using marker LILRA4 (eg https://pubmed.ncbi.nlm.nih.gov/30395816/)
+```{r}
+my_scGate_model <- edit_model()  # model initizlization
+my_scGate_model <- edit_model(model = my_scGate_model, name = "pDC", signature = c("LILRA4"))  # add one positive signature
+
+# run the model
+obj <- scGate(data = obj, model = my_scGate_model, assay = DefaultAssay(obj))
+DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1) 
+```
+
+```{r}
+scGate::performance.metrics(obj$cell_type=="pDC",obj$is.pure=="Pure")
+```
+
+
+## Gating models with positive and negative markers
+
+Another example for gating NKs, which express KLRD1. However, KLRD1 can also be expreseed by some T cell subsets, so we can filter these out by including "negative" T cell markers such as CD3D or CD3G
 ```{r}
 # simple model building 
 my_scGate_model <- edit_model()  # model initizlization
@@ -104,20 +123,7 @@ scGate::performance.metrics(grepl("^NK",obj$cell_type),obj$is.pure=="Pure")
 With this simple model, >85% of NKs (recall) are isolated with a 100% purity (Precision=1), and overall accuracy/MCC of 92%
 
 
-Another example for gating plasmacytoid dendritic cells (pDCs), which can be isolated using marker LILRA4 (eg https://pubmed.ncbi.nlm.nih.gov/30395816/)
-```{r}
-# simple model building 
-my_scGate_model <- edit_model()  # model initizlization
-my_scGate_model <- edit_model(model = my_scGate_model, name = "pDC", signature = c("LILRA4"))  # add one positive signature
-
-# run the model
-obj <- scGate(data = obj, model = my_scGate_model, assay = DefaultAssay(obj))
-DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1) 
-```
-```{r}
-scGate::performance.metrics(obj$cell_type=="pDC",obj$is.pure=="Pure")
-```
-
+## Hierarchical gating models
 
 Here we have been using a dataset derived from blood (PBMC). When working with more complex tissues, such as tumors, we might need to apply more stringent criteria. That's why scGate allows to purify by steps, using a hierarchical gating model.
 
@@ -166,20 +172,22 @@ We see on the left the immune cell purification step, and on the right, the macr
 wrap_plots(plot_levels(obj))
 ```
 
+## Editing models
 scGate models of arbitrary complexity can be easily constructed to achieve high purification performance.
 These gating models can be written using the edit_model(), and manually edited using eg R's fix().
 You can also export your basic model created with edit_model() as tabulated text and edit on Excel
-```{r}
+```{r, eval=F}
 fix(my_scGate_model) # edit locally in R
 write.table(my_scGate_model,"test.tsv",sep="\t") # export and then edit on Excel
 my_scGate_model_edited <- scGate::load_scGate_model("test.tsv") # tabulated-text model can loaded
 ```
 
 
+## Fast evaluation of model performance
+
 We provide a built-in function `test_my_model` to automatically evaluate the performance of a gating model using 3 pre-annotated testing datasets:
 
-## fast evaluation of model modifications
-```{r,fig.width=16,fig.height=12,collapse = T, message = F}
+```{r, fig.width=16,fig.height=12,collapse = T, message = F}
 my_scGate_model <- edit_model()  
 my_scGate_model <- edit_model(model = my_scGate_model, name = "Bcell", signature = c("MS4A1"))
 panBcell.performance <- test_my_model(my_scGate_model, target = "Bcell")
@@ -195,6 +203,8 @@ panBcell.performance$performance
 
 ```
 Now performance is very high for the three datasets.
+
+## Using our repository of pre-defined gating models
 
 We also provide some pre-defined gating models, these can be retrieved with get_scGateDB()
 
