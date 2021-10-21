@@ -244,7 +244,7 @@ obj <- scGate(obj, model = my_scGate_model)
 DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1) 
 ```
 
-## Visualize filtering results by layer
+Visualizing filtering results by level
 
 ```{r,fig.height=8,fig.width=10 }
 plots <- scGate::plot_levels(obj)
@@ -252,7 +252,7 @@ plots[["annotation"]] <- DimPlot(obj, group.by = "cell_type",label = T, repel =T
 wrap_plots(plots, ncol = 2)
 ```
 
-## Evaluate performance of filtering compared to original annotation
+Evaluate performance of filtering compared to original annotation
 ```{r,collapse=T}
 perf.scGate = scGate::performance.metrics(actual = obj$Plasma_cell, pred = obj$is.pure== "Pure")
 perf.scGate
