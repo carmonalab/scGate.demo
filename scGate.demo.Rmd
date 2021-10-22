@@ -164,7 +164,7 @@ DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.rat
 scGate::performance.metrics(obj$cell_type %in% c("Macrophage"),obj$is.pure=="Pure")
 ```
 
-Here we isolated 92% of macrophages with a 90% purity (according to annotation by Jerby-Arnon et al). We could easiliy improve PREC and REC by adding more positive and negative markers, respectively (e.g. removing lymphocytes)
+Here we isolated 92% of macrophages with a 90% purity (according to annotation by Jerby-Arnon et al). We could easily improve PREC and REC by adding more positive and negative markers, respectively (e.g. removing lymphocytes)
 
 
 We can see how the two-level gating model worked in each step using scGate's plot_levels.
@@ -195,8 +195,9 @@ panBcell.performance <- test_my_model(my_scGate_model, target = "Bcell")
 panBcell.performance$performance
 ```
 
-We see that in one of the datsets this simple model did not have an excellent precision (85%).
-We can refine it, for instance by removing potentially contaminat T cell genes (CD3D) and try again
+We see that in one of the datasets our simple model did not have an excellent precision (85%).
+We can refine it, for instance, by removing potentially contaminating T cell genes (CD3D) and try again:
+
 ```{r, fig.width=8,fig.height=12,collapse = T, message = F}
 my_scGate_model <- edit_model(model = my_scGate_model, name = "Tcell", signature = c("CD3D"),negative = T)
 panBcell.performance <- test_my_model(my_scGate_model, target = "Bcell")
@@ -245,7 +246,7 @@ obj <- scGate(obj, model = my_scGate_model)
 DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1) 
 ```
 
-Visualizing filtering results by level
+Visualizing filtering results by level. We can see how the purity increases at each level.
 
 ```{r,fig.height=8,fig.width=10 }
 plots <- scGate::plot_levels(obj)
