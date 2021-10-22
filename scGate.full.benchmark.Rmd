@@ -16,11 +16,14 @@ knit: (function(input_file, encoding) {
 
 
 ```{r, message=F, warning=F,results=F}
+renv::activate()
 renv::restore()
 library(ggplot2)
 library(dplyr)
 remotes::install_github("carmonalab/scGate", ref='dev')
 library(scGate)
+library(ggsignif)
+library(ggpubr)
 #renv::snapshot()
 ```
 
@@ -52,14 +55,14 @@ figure.path <- "~/Dropbox/CSI/PAPERS/scGate/Figures"
 
 Load datasets
 ```{r}
-testing.datasets <- scGate:::get_testing_data(version = 'hsa.latest')
-#testing.datasets <- readRDS("~/Dropbox/CSI/Datasets/human/human.sets.expanded.singler.rds")
+#testing.datasets <- scGate:::get_testing_data(version = 'hsa.latest')
+testing.datasets <- readRDS("~/Dropbox/CSI/Datasets/human/human.sets.expanded.singler.rds")
 
 ```
 
 Load default models from DB
 ```{r}
-models.DB <- scGate::get_scGateDB()
+models.DB <- scGate::get_scGateDB(force_update = T)
 models <- models.DB$human$generic  ## Human generic is a set of models trained for general purposes
 print(models%>%names)
 
@@ -122,7 +125,7 @@ print(t1-t0)
 ## performance visualization
 
 ```{r,fig.width= 8, fig.height= 16}
-res <- results%>%subset(metric %in% c("PREC","MCC") & dataset %in% c("PBMC_Satija","Jerby", "Yost","zilionis"))
+res <- results%>%subset(metric %in% c("PREC","MCC") & dataset %in% c("PBMC_Satija","Jerby", "Yost","zilionis") )
 plts <- ggplot(res, aes(x=model, y=value, fill=method)) + 
     geom_bar(position="dodge", stat="identity",width = 0.5) +
     facet_wrap(~ dataset + metric ,ncol = 2)  + theme_bw() +
@@ -132,21 +135,38 @@ plts <- ggplot(res, aes(x=model, y=value, fill=method)) +
        )
      ) + 
     theme(axis.text.x = element_text(angle = 60, vjust = 0.4, hjust=0.5)) 
+#plts
 ```
 
 ```{r,fig.wirth = 8,fig.height=5}
-res <- results%>%subset(metric %in% c("PREC","MCC") & dataset %in% c("PBMC_Satija","Jerby", "Yost","zilionis"))
+
+data_summary <- function(x) {
+   m <- mean(x)
+   se <- function(x) sqrt(var(x)/length(x))
+   ymin <- m-se(x)
+   ymax <- m+se(x)
+   return(c(y=m,ymin=ymin,ymax=ymax))
+}
+
+res <- results%>%subset(metric %in% c("PREC","MCC") & dataset %in% c("PBMC_Satija","Jerby", "Yost","zilionis") 
+                        & model!= "Plasma_cell")
+
 
 res.prec <- res%>%subset(metric == "PREC")
 res.mcc <- res%>%subset(metric == "MCC")
 
-plt.prec <- plts <- ggplot(res.prec, aes(x=model, y=value, fill = method )) + geom_boxplot() +
+plt.prec <- plts <- ggplot(res.prec, aes(x=model, y=value, color = method )) + geom_jitter(position=position_jitterdodge(jitter.width = 0.2), size = 0.4) +
+  stat_summary(fun.data=data_summary,position=position_dodge(0.8), shape = 4, size = 0.25) + 
   ylab("Precision")   + theme_bw() +
   theme(legend.position = "none") +
-  theme(axis.text.x = element_text(angle = 60, vjust = 0.4, hjust=0.5))
+  theme(axis.text.x = element_text(angle = 60, vjust = 0.4, hjust=0.5)) 
+  
 
 
-plt.mcc <- plts <- ggplot(res.mcc, aes(x=model, y=value, fill = method )) + geom_boxplot() +
+plt.mcc  <- ggplot(res.mcc, aes(x=model, y=value, color=method )) + geom_jitter(position=position_jitterdodge(jitter.width = 0.2), size = 0.4) +
+#  scale_color_manual(values=c("#E69F00", "#56B4E9")) + 
+  stat_summary(fun.data=data_summary,  
+               position=position_dodge(0.8), shape = 4, size = 0.25) + 
   ylab("MCC")  + theme_bw() +
   theme(legend.position = c(0.85, 0.15), legend.title = element_blank()) + 
   theme(axis.text.x = element_text(angle = 60, vjust = 0.4, hjust=0.5))
@@ -154,6 +174,7 @@ plt.mcc <- plts <- ggplot(res.mcc, aes(x=model, y=value, fill = method )) + geom
 plts  = plt.prec + plt.mcc
 plts
 ```
+
 
 ```{r,echo =FALSE, results=F}
 saveRDS(results,file = file.path(figure.path,"benchmark_20102021_scGate.rds")) 
