@@ -52,6 +52,7 @@ opts_knit$set(width=75)
 ## Load demo datasets 
 ```{r}
 testing.datasets <- scGate:::get_testing_data(version = 'hsa.latest')
+dir.create('./plots')
 ```
 
 Let's play with a PBMC dataset ("Satija") from the publication XXX
