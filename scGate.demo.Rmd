@@ -57,7 +57,8 @@ testing.datasets <- scGate:::get_testing_data(version = 'hsa.latest')
 Let's play with a PBMC dataset ("Satija") from the publication XXX
 ```{r,collapse =T}
 obj <- testing.datasets[["Satija"]]
-DimPlot(obj, label = T, repel = T, group.by = "cell_type") + theme(legend.position = "none", aspect.ratio = 1) 
+DimPlot(obj, label = T, repel = T, group.by = "celltype.l1") + theme(legend.position = "none", aspect.ratio = 1) 
+ggsave("plots/umap.satija.celltype.3.pdf",width = 3, height = 3)
 ```
 
 ## Creating a simple gating model
@@ -66,10 +67,10 @@ Now let's setup a simple scGate gating model to purify a population of interest,
 B cells are usually identified by the expression of CD20, encoded by MS4A1
 
 ```{r}
-# model initizlization
+# model initialization
 my_scGate_model <- edit_model()  
 
-# add a first signature
+# add a signature/set of marker genes
 my_scGate_model <- edit_model(model = my_scGate_model, name = "Bcell", signature = c("MS4A1"))
 my_scGate_model
 ```
@@ -79,6 +80,7 @@ my_scGate_model
 # run scGate
 obj <- scGate(data = obj, model = my_scGate_model, assay = DefaultAssay(obj))
 DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1) 
+ggsave("plots/umap.satija.Bcell.pdf",width = 4, height = 4)
 ```
 
 Because in this demo example we know the ground truth (at least, as defined by the authors), let's evaluate scGate predictive performance in terms of precision/positive predictive value, recall/sensitivity, and accuracy using Matthews Correlation Coefficient (MCC)
@@ -106,16 +108,15 @@ scGate::performance.metrics(obj$cell_type=="pDC",obj$is.pure=="Pure")
 
 ## Gating models with positive and negative markers
 
-Another example for gating NKs, which express KLRD1. However, KLRD1 can also be expreseed by some T cell subsets, so we can filter these out by including "negative" T cell markers such as CD3D or CD3G
+Another example for gating NKs, which express KLRD1. However, KLRD1 can also be expreseed by some T cell subsets, so we can filter these out by including "negative" T cell markers such as CD3D
 ```{r}
-# simple model building 
-my_scGate_model <- edit_model()  # model initizlization
-my_scGate_model <- edit_model(model = my_scGate_model, name = "NK", signature = c("KLRD1"))  # add one positive signature
-my_scGate_model <- edit_model(model = my_scGate_model, name = "Tcell", signature = c("CD3D","CD3G"),negative = T)  # add one negative signature
+my_scGate_model <- edit_model()  
+my_scGate_model <- edit_model(model = my_scGate_model, name = "NK", signature = c("KLRD1","CD3D-"))  
 
 # run the model
 obj <- scGate(data = obj, model = my_scGate_model, assay = DefaultAssay(obj))
 DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1) 
+ggsave("plots/umap.satija.NK.pdf",width = 4, height = 4)
 ```
 
 Let's evaluate performance
@@ -134,6 +135,7 @@ Let's explore the whole tumor dataset by Jerby-Arnon et al (CITE)
 ```{r,collapse =T}
 obj <- testing.datasets[["JerbyArnon"]]
 DimPlot(obj, label = T, repel = T, group.by = "cell_type") + theme(legend.position = "none", aspect.ratio = 1) 
+ggsave("plots/umap.jerby.celltype.3.pdf",width = 3, height = 3)
 ```
 Here we have non-immune populations such as malignant/cancer cells (Mal), Endothelial cells (Endo) and cancer-associated fibroblasts (CAF).
 We can try to purify a broadly defined cell population, for instance, all immune cells, using pan-immune cell marker CD45 encoded by PTPRC:
@@ -143,6 +145,7 @@ my_scGate_model <- edit_model()  # model initizlization
 my_scGate_model <- edit_model(model = my_scGate_model, name = "immune", signature = c("PTPRC")) 
 obj <- scGate(data = obj, model = my_scGate_model, assay = DefaultAssay(obj))
 DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1) 
+ggsave("plots/umap.jerby.immune.pdf",width = 4, height = 4)
 ```
 
 ```{r}
@@ -158,13 +161,14 @@ my_scGate_model <- edit_model(model = my_scGate_model, name = "immune", signatur
 my_scGate_model <- edit_model(model = my_scGate_model, name = "macrophage", signature = c("CD68","FCGR1A"), level = 2)  # add positive signature at second step
 obj <- scGate(data = obj, model = my_scGate_model, assay = DefaultAssay(obj))
 DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1) 
+ggsave("plots/umap.jerby.macro.pdf",width = 4, height = 4)
 ```
 
 ```{r}
 scGate::performance.metrics(obj$cell_type %in% c("Macrophage"),obj$is.pure=="Pure")
 ```
 
-Here we isolated 92% of macrophages with a 90% purity (according to annotation by Jerby-Arnon et al). We could easiliy improve PREC and REC by adding more positive and negative markers, respectively (e.g. removing lymphocytes)
+Here we isolated 92% of macrophages with a 90% purity (according to annotation by Jerby-Arnon et al). We could easily improve PREC and REC by adding more positive and negative markers, respectively (e.g. removing lymphocytes)
 
 
 We can see how the two-level gating model worked in each step using scGate's plot_levels.
@@ -195,8 +199,9 @@ panBcell.performance <- test_my_model(my_scGate_model, target = "Bcell")
 panBcell.performance$performance
 ```
 
-We see that in one of the datsets this simple model did not have an excellent precision (85%).
-We can refine it, for instance by removing potentially contaminat T cell genes (CD3D) and try again
+We see that in one of the datasets our simple model did not have an excellent precision (85%).
+We can refine it, for instance, by removing potentially contaminating T cell genes (CD3D) and try again:
+
 ```{r, fig.width=8,fig.height=12,collapse = T, message = F}
 my_scGate_model <- edit_model(model = my_scGate_model, name = "Tcell", signature = c("CD3D"),negative = T)
 panBcell.performance <- test_my_model(my_scGate_model, target = "Bcell")
@@ -245,7 +250,7 @@ obj <- scGate(obj, model = my_scGate_model)
 DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1) 
 ```
 
-Visualizing filtering results by level
+Visualizing filtering results by level. We can see how the purity increases at each level.
 
 ```{r,fig.height=8,fig.width=10 }
 plots <- scGate::plot_levels(obj)
@@ -258,8 +263,5 @@ Evaluate performance of filtering compared to original annotation
 perf.scGate = scGate::performance.metrics(actual = obj$Plasma_cell, pred = obj$is.pure== "Pure")
 perf.scGate
 ```
-
-
-
 
 
