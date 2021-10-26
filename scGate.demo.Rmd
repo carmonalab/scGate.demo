@@ -131,51 +131,6 @@ With this simple model, >97% of NKs (recall) are isolated with a 96% purity (Pre
 
 ## Hierarchical gating models
 
-NB: I understand the purpose of having an example like this to demonstrate why a hierarchical strategy can be superior to one level, even using the same set of markers. I also think this specific example is not the best for the basic demo; it looks too complicated, genes used are not common marker genes and performance is not great, especially for a population we already purified above with excellent precision using 1 gene
-
-
-Let me suppose we were interested in gating a more specific cell type, like B-naive cells. In that case, taking advantage of some specific markers that could differentiate among B cell populations like IGHD, IGHM or IGHG could be useful. Nevertheless, those context-specific marker genes can be somewhat unspecific  when a more broad cell population is considered.  
-```{r}
-# 
-my_scGate_model <- edit_model()  
-# add a signature/set of marker genes
-my_scGate_model <- edit_model(model = my_scGate_model, name = "Bcell", signature = c("MS4A1"))
-my_scGate_model <- edit_model(model = my_scGate_model,  name = "naive", signature = c("IGHD","IGHM"),positive =T)
-my_scGate_model <- edit_model(model = my_scGate_model,  name = "Intermediate", signature = c("TNFRSF13B"),negative =T) #c("TNFRSF13B","LINC01857"))
-my_scGate_model <- edit_model(model = my_scGate_model,  name = "IGHG", signature = c("IGHG1"),negative =T)
-
-obj <- scGate(data = obj, model = my_scGate_model, assay = DefaultAssay(obj))
-DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1) 
-
-scGate::performance.metrics(grepl("B naive",obj$cell_type),obj$is.pure=="Pure")
-```
-
-In this model precision is low (~0.55) because IGHM, an expected B Naive marker, is alsoexpressed at some extent in other celltype (pDC in this case)
-```{r}
-FeaturePlot(obj,features = c("IGHM"))
-```
-
-In such scenario, devising a model in a hierarchical way could be extremely useful. Let consider a model with exactly the same gene markers, but this time organized in a hierarchical way of two levels
-
-```{r}
-# 
-my_scGate_model <- edit_model()  
-# add a signature/set of marker genes
-my_scGate_model <- edit_model(model = my_scGate_model, name = "Bcell", signature = c("MS4A1"), level = 1)  # Filter B cells in the first layer
-my_scGate_model <- edit_model(model = my_scGate_model,  name = "naive", signature = c("IGHD","IGHM"),positive =T, level = 2)  # Isolate naive B cells in a second layer
-my_scGate_model <- edit_model(model = my_scGate_model,  name = "Intermediate", signature = c("TNFRSF13B"),negative =T, level = 2) #c("TNFRSF13B","LINC01857"))
-my_scGate_model <- edit_model(model = my_scGate_model,  name = "IGHG", signature = c("IGHG1"),negative =T, level = 2)
-
-obj <- scGate(data = obj, model = my_scGate_model, assay = DefaultAssay(obj))
-DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1) 
-
-scGate::performance.metrics(grepl("B naive",obj$cell_type),obj$is.pure=="Pure")
-```
-So we have now recover near 95% of present B-naive cells with a 84% of precision. We remark the fact that the model has exactly the same markers but this time organized in a hierarchical, and more clear way. 
-
-
-### Complex tissues
-
 Here we have been using a dataset derived from blood (PBMC). When working with more complex tissues, such as tumors, we might need to apply more stringent criteria. That's why scGate allows to purify by steps, using a hierarchical gating model.
 
 Let's explore the whole tumor dataset by Jerby-Arnon et al (CITE)

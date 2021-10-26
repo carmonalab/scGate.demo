@@ -1,0 +1,136 @@
+---
+title: "scGate: Purification of cell types from complex single-cell RNA-seq data. Basic examples."
+author: "M. Andreatta, A. Berenstein and S. Carmona"
+date: "29/09/2021"
+output:
+  rmdformats::readthedown:
+    self-contained: true
+    highlight: haddock
+    thumbnails: false
+    css: styles.css
+knit: (function(input_file, encoding) {
+  out_dir <- 'docs';
+  rmarkdown::render(input_file, encoding=encoding,
+ output_file=file.path(dirname(input_file), out_dir, 'scGate.basic.usage.html'))})
+---
+
+## Setup environment
+
+```{r, message=F, warning=F,results=F}
+renv::activate()
+renv::restore()
+library(ggplot2)
+library(dplyr)
+library(patchwork)
+remotes::install_github("carmonalab/scGate",ref = "dev")
+library(scGate)
+```
+
+
+```{r setup, echo=FALSE, message=F, warning=F, results=F}
+library(knitr)
+library(rmdformats)
+library(formatR)
+
+
+## Global options
+options(max.print="75")
+opts_chunk$set(echo=TRUE,
+	             cache=TRUE,
+               cache.lazy=FALSE,
+               prompt=FALSE,
+               tidy=TRUE,
+               comment=NA,
+               message=FALSE,
+               warning=FALSE,
+               dev='png')
+opts_knit$set(width=75)
+
+```
+
+
+## Load demo datasets 
+```{r}
+testing.datasets <- scGate:::get_testing_data(version = 'hsa.latest')
+dir.create('./plots')
+```
+
+Let's play with a PBMC dataset ("Satija") from the publication XXX
+```{r,collapse =T}
+obj <- testing.datasets[["Satija"]]
+DimPlot(obj, label = T, repel = T, group.by = "celltype.l1") + theme(legend.position = "none", aspect.ratio = 1) 
+ggsave("plots/umap.satija.celltype.3.pdf",width = 3, height = 3)
+```
+
+## Creating a simple gating model
+
+Now let's setup a simple scGate gating model to purify a population of interest, for instance, B cells.
+B cells are usually identified by the expression of CD20, encoded by MS4A1
+
+```{r}
+# model initialization
+my_scGate_model <- edit_model()  
+
+# add a signature/set of marker genes
+my_scGate_model <- edit_model(model = my_scGate_model, name = "Bcell", signature = c("MS4A1"))
+my_scGate_model
+```
+
+## Purify a cell population of interest with scGate
+```{r, collapse=T}
+# run scGate
+obj <- scGate(data = obj, model = my_scGate_model, assay = DefaultAssay(obj))
+DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1) 
+ggsave("plots/umap.satija.Bcell.pdf",width = 4, height = 4)
+```
+
+Because in this demo example we know the ground truth (at least, as defined by the authors), let's evaluate scGate predictive performance in terms of precision/positive predictive value, recall/sensitivity, and accuracy using Matthews Correlation Coefficient (MCC)
+```{r}
+scGate::performance.metrics(grepl("^B ",obj$cell_type),obj$is.pure=="Pure")
+```
+With this very simple model, >99% (Recall) are isolated with a >99% purity (Precision), and and overall accuracy/MCC >99%
+
+
+## Hierarchical gating models
+
+Let me suppose we were interested in gating a more specific cell type, like B-naive cells. In that case, taking advantage of some specific markers that could differentiate among B cell populations like IGHD, IGHM or IGHG could be useful. Nevertheless, those context-specific marker genes can be somewhat unspecific when a more broad cell population is considered.  
+```{r}
+# 
+my_scGate_model <- edit_model()  
+# add a signature/set of marker genes
+my_scGate_model <- edit_model(model = my_scGate_model, name = "Bcell", signature = c("MS4A1"))
+my_scGate_model <- edit_model(model = my_scGate_model,  name = "naive", signature = c("IGHD","IGHM"),positive =T)
+my_scGate_model <- edit_model(model = my_scGate_model,  name = "Intermediate", signature = c("TNFRSF13B"),negative =T) #c("TNFRSF13B","LINC01857"))
+my_scGate_model <- edit_model(model = my_scGate_model,  name = "IGHG", signature = c("IGHG1"),negative =T)
+
+obj <- scGate(data = obj, model = my_scGate_model, assay = DefaultAssay(obj))
+DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1) 
+
+scGate::performance.metrics(grepl("B naive",obj$cell_type),obj$is.pure=="Pure")
+```
+
+In this model precision is low (~0.55) because IGHM, an expected B Naive marker, is alsoexpressed at some extent in other celltype (pDC in this case)
+```{r}
+FeaturePlot(obj,features = c("IGHM"))
+```
+
+In such scenario, devising a model in a hierarchical way could be extremely useful. Let consider a model with exactly the same gene markers, but this time organized in a hierarchical way of two levels
+
+```{r}
+# 
+my_scGate_model <- edit_model()  
+# add a signature/set of marker genes
+my_scGate_model <- edit_model(model = my_scGate_model, name = "Bcell", signature = c("MS4A1"), level = 1)  # Filter B cells in the first layer
+my_scGate_model <- edit_model(model = my_scGate_model,  name = "naive", signature = c("IGHD","IGHM"),positive =T, level = 2)  # Isolate naive B cells in a second layer
+my_scGate_model <- edit_model(model = my_scGate_model,  name = "Intermediate", signature = c("TNFRSF13B"),negative =T, level = 2) #c("TNFRSF13B","LINC01857"))
+my_scGate_model <- edit_model(model = my_scGate_model,  name = "IGHG", signature = c("IGHG1"),negative =T, level = 2)
+
+obj <- scGate(data = obj, model = my_scGate_model, assay = DefaultAssay(obj))
+DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1) 
+
+scGate::performance.metrics(grepl("B naive",obj$cell_type),obj$is.pure=="Pure")
+```
+So we have now recover near 95% of present B-naive cells with a 84% of precision. We remark the fact that the model has exactly the same markers but this time organized in a hierarchical, and more clear way. 
+
+
+
