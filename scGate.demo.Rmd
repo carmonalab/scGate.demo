@@ -212,7 +212,7 @@ panBcell.performance$performance
 ```
 Now performance is very high for the three datasets.
 
-## Using our repository of pre-defined gating models
+## Using pre-defined gating models
 
 We also provide some pre-defined gating models, these can be retrieved with get_scGateDB()
 
@@ -226,7 +226,7 @@ names(models.DB$mouse$generic)
 
 ```
 
-### Have a look at some model (PanBcell for B cells and plasma cells)
+### Visualizing gating models
 
 To visualize complex models in tree-like structures, we provide plot_tree() function
 This is a model to purify plasma (B) cells with high accuracy
