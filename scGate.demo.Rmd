@@ -1,5 +1,5 @@
 ---
-title: "Purification of cell types from complex single-cell RNA-seq data. Basic examples."
+title: "scGate: Purification of cell types from complex single-cell RNA-seq data. Basic examples."
 author: "M. Andreatta, A. Berenstein and S. Carmona"
 date: "29/09/2021"
 output:
@@ -126,12 +126,15 @@ Let's evaluate performance
 scGate::performance.metrics(grepl("^NK",obj$cell_type),obj$is.pure=="Pure")
 ```
 
-With this simple model, >85% of NKs (recall) are isolated with a 100% purity (Precision=1), and overall accuracy/MCC of 92%
+With this simple model, >97% of NKs (recall) are isolated with a 96% purity (Precision), and overall accuracy/MCC of 96%
 
 
 ## Hierarchical gating models
 
-Let me suppose we were interested in gating a more specific cell type, like B-naive cells. In that case, taking advantage of some specific markers that could differentiate among B cell populations like IGHD, IGHM or IGHG could be useful. Nevertheless, those context-specific marker genes can be somewhat unspecific at when a more broad cell population is considered.  
+NB: I understand the purpose of having an example like this to demonstrate why a hierarchical strategy can be superior to one level, even using the same set of markers. I also think this specific example is not the best for the basic demo; it looks too complicated, genes used are not common marker genes and performance is not great, especially for a population we already purified above with excellent precision using 1 gene
+
+
+Let me suppose we were interested in gating a more specific cell type, like B-naive cells. In that case, taking advantage of some specific markers that could differentiate among B cell populations like IGHD, IGHM or IGHG could be useful. Nevertheless, those context-specific marker genes can be somewhat unspecific  when a more broad cell population is considered.  
 ```{r}
 # 
 my_scGate_model <- edit_model()  
@@ -196,8 +199,8 @@ ggsave("plots/umap.jerby.immune.pdf",width = 4, height = 4)
 scGate::performance.metrics(obj$cell_type %in% c("B.cell","NK","T.CD4","T.CD8","T.cell","Macrophage"),obj$is.pure=="Pure")
 ```
 
-Now let's try to recover macrophages (eg using marker CD68). Instead of purifying macrophages from the whole tissue, we can do that in two steps:
-first immune cells as in the previous example, then macrophages. Hierarchical gating models can be specified in scGate using parameter "level"  as follows:
+Now let's try to recover macrophages (eg using common markers CD68 and FCGR1A). Instead of purifying macrophages directly from the whole tissue, we can try to do it in two steps (hierarchical strategy): i) isolate immune cells as in the previous example, ii) isolate macrophages from immune cells. 
+Hierarchical gating models can be specified in scGate using parameter "level",  as follows:
 
 ```{r}
 my_scGate_model <- edit_model()  # model initizlization
@@ -212,7 +215,7 @@ ggsave("plots/umap.jerby.macro.pdf",width = 4, height = 4)
 scGate::performance.metrics(obj$cell_type %in% c("Macrophage"),obj$is.pure=="Pure")
 ```
 
-Here we isolated 92% of macrophages with a 90% purity (according to annotation by Jerby-Arnon et al). We could easily improve PREC and REC by adding more positive and negative markers, respectively (e.g. removing lymphocytes)
+Here we isolated 92% of macrophages with a 91% purity (according to annotation by Jerby-Arnon et al). We could easily improve PREC and REC by adding more positive and negative markers, respectively (e.g. removing lymphocytes)
 
 
 We can see how the two-level gating model worked in each step using scGate's plot_levels.
@@ -271,7 +274,7 @@ names(models.DB$mouse$generic)
 ### Have a look at some model (PanBcell for B cells and plasma cells)
 
 To visualize complex models in tree-like structures, we provide plot_tree() function
-This is a model to purify B cells and plasma cells with high accuracy
+This is a model to purify plasma (B) cells with high accuracy
 
 ```{r message=F,results=F}
 my_scGate_model <- models.DB$human$generic$Plasma_cell
