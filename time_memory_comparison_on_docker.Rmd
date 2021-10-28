@@ -1,0 +1,182 @@
+---
+title: Test basic functionalities of scGate on human data
+author: 
+- Massimo Andreatta^[massimo.andreatta@unil.ch]
+- Ariel Berenstein^[aberenstein@conicet.gov.ar]
+- Santiago Carmona^[santiago.carmona@unil.ch]
+date: "15/02/2021"
+knit: (function(input_file, encoding) {
+  out_dir <- 'docs';
+  rmarkdown::render(input_file,
+ encoding=encoding,
+ output_file=file.path(dirname(input_file), out_dir, 'index.html'))})
+#output: html_notebook
+---
+
+
+```{r message=F, warning=F}
+library(ggplot2)
+library(scGate)
+library(SingleR)
+library(dplyr)
+library(BiocParallel)
+library(patchwork)
+library(parallel)
+```
+
+
+
+# Get some testing datasets
+```{r}
+testing.datasets <- scGate:::get_testing_data(version = 'hsa.latest')
+dataset.list.all <- readRDS("~/Datasets/human.sets.expanded.singler.rds")
+dataset.list.all <- dataset.list.all["bassez.c1"]
+gc()
+```
+
+## Load Models from tables and impute them (if were necessary)
+```{r}
+models.DB <- scGate::get_scGateDB()
+model <- models.DB$human$generic$CD8T  # model with 4 levels 
+model$levels%>%unique()%>%length()
+```
+
+# Set parameters for time comparison
+```{r}
+timing <- list()
+memory <- list()
+ncells <- c(500,1000,5000,10000,25000,50000)
+whole.obj <- dataset.list.all$bassez.c1
+```
+
+### Load training data for SIngleR
+```{r}
+hpca.se <- HumanPrimaryCellAtlasData()  ## reference
+param <- MulticoreParam(workers = 8)    # configure parallelization
+```
+
+
+
+# subset testing dataset (with different number of cells)  and run both models
+```{r}
+for(downsample in ncells){
+  message(sprintf("runing methods with %s cells",downsample))
+  
+  # subset dataset
+  subseted.obj <- subset(whole.obj, cells=sample(Cells(whole.obj),downsample))
+  
+  
+  #scGate
+  gc1 <- gc(reset = TRUE)
+  t0 <- Sys.time()
+  out <- tryCatch({
+          test <- scGate(subseted.obj, model = model, ncores = 8)
+      },
+    error=function(cond) {
+      message(cond)
+      return(NA)
+  })
+  t1 <- Sys.time() 
+  tt <- t1-t0
+  deltaT <- as.numeric(tt, units = "mins")
+  gc2 <- gc()
+  if (is.na(out)) { #Out of memory
+    memPeak <- NA
+    time <- NA
+  } else {
+    memPeak <- (sum(gc2[,6]) - sum(gc1[,6]))/1000
+    time <- deltaT
+  }
+  #reserve result
+  timing[[paste0("Ncell_",downsample)]][["scGate"]] <- time
+  memory[[paste0("Ncell_",downsample)]][["scGate"]] <- memPeak 
+  
+}
+```
+
+
+```{r}
+#### SIngleR
+for(downsample in ncells){
+  message(sprintf("runing methods with %s cells",downsample))
+  
+  # subset dataset
+  subseted.obj <- subset(whole.obj, cells=sample(Cells(whole.obj),downsample))
+  
+
+  gc1 <- gc(reset = TRUE)
+  t0 <- Sys.time()
+  out <- tryCatch({
+      test <- SingleR(test = GetAssayData(subseted.obj), ref = hpca.se, labels = hpca.se$label.fine, BPPARAM=param)
+      },
+    error=function(cond) {
+      message(cond)
+      return(NA)
+  })
+  t1 <- Sys.time() 
+  tt <- t1-t0
+  deltaT <- as.numeric(tt, units = "mins")
+  gc2 <- gc()
+  if (is.na(out)) { #Out of memory
+    memPeak <- NA
+    time <- NA
+  } else {
+    memPeak <- (sum(gc2[,6]) - sum(gc1[,6]))/1000
+    time <- deltaT
+  }
+  
+
+  #reserve result
+  timing[[paste0("Ncell_",downsample)]][["SingleR"]] <-  deltaT 
+  memory[[paste0("Ncell_",downsample)]][["SingleR"]] <- memPeak 
+
+}
+```
+
+
+```{r}
+results <- list(timing = timing, memory = memory)
+saveRDS(results,"/home/rstudio/Figures/time_memory_SingleR_scGate.rds")
+```
+
+```{r}
+res.time <- data.frame()
+
+for(mtd in c("SingleR","scGate")){
+  for(nc in ncells){
+    a <- results$timing[[paste0("Ncell_",nc)]][[mtd]]
+    if(is.null(a)){a <- NA}
+    res.time <- rbind(res.time,data.frame("Ncell"= nc,method = mtd,time = a))
+  }
+}
+
+res.memory <- data.frame()
+
+for(mtd in c("SingleR","scGate")){
+  for(nc in ncells){
+    a <- results$memory[[paste0("Ncell_",nc)]][[mtd]]
+    if(is.null(a)){a <- NA}
+    res.memory <- rbind(res.memory,data.frame("Ncell"= nc,method = mtd,memory = a))
+  }
+}
+
+
+
+```
+
+
+```{r,fig.width = 10,fig.height = 5}
+plt.time <- ggplot(res.time,aes(x=Ncell,y = time,
+               group =method, colour = method)) + geom_line() + ylab("Time [min]")  + xlab("# cells") + geom_point() + theme_bw() + theme(axis.text.x = element_text(angle = 60,hjust=1), legend.position = "none") 
+
+plt.mem <- ggplot(res.memory,aes(x=Ncell,y = memory,
+               group =method, colour = method)) + geom_line() + ylab("Memory [Gb]")  + xlab("# cells") + geom_point() + theme_bw() + theme(axis.text.x = element_text(angle = 60,hjust=1))
+
+plt <- plt.time + plt.mem
+plt
+ggsave(filename = "~/Figures/time_memory_benchmark_docker.pdf",plot = plt,width = 10,height = 5)
+ggsave(filename = "~//Figures/time_benchmark_docker.png",plot = plt,width = 10,height = 5)
+
+```
+
+
