@@ -51,11 +51,11 @@ opts_knit$set(width=75)
 
 ## Load demo datasets 
 ```{r}
-testing.datasets <- scGate:::get_testing_data(version = 'hsa.latest')
+testing.datasets <- scGate::get_testing_data(version = 'hsa.latest')
 dir.create('./plots')
 ```
 
-Let's play with a PBMC dataset ("Satija") from the publication XXX
+Let's play with a PBMC dataset ("Satija") from Hao et al 2021 (https://doi.org/10.1016/j.cell.2021.04.048)
 ```{r,collapse =T}
 obj <- testing.datasets[["Satija"]]
 DimPlot(obj, label = T, repel = T, group.by = "celltype.l1") + theme(legend.position = "none", aspect.ratio = 1) 
@@ -129,7 +129,7 @@ With this simple model, >97% of NKs (recall) are isolated with a 96% purity (Pre
 
 Here we have been using a dataset derived from blood (PBMC). When working with more complex tissues, such as tumors, we might need to apply more stringent criteria. That's why scGate allows to purify by steps, using a hierarchical gating model.
 
-Let's explore the whole tumor dataset by Jerby-Arnon et al (CITE)
+Let's explore the whole tumor dataset by Jerby-Arnon et al 2018 (https://doi.org/10.1016/j.cell.2018.09.006)
 ```{r,collapse =T}
 obj <- testing.datasets[["JerbyArnon"]]
 DimPlot(obj, label = T, repel = T, group.by = "cell_type") + theme(legend.position = "none", aspect.ratio = 1) 
@@ -232,7 +232,7 @@ plt.tree
 ```
 
 
-Run an example, now on another tumor dataset by Zilionis et al.
+Run an example, now on another tumor dataset by Zilionis et al 2019 (https://doi.org/10.1016/j.immuni.2019.03.009)
 
 ```{r}
 obj <- testing.datasets[["Zilionis"]]
