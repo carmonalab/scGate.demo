@@ -68,11 +68,8 @@ Now let's setup a simple scGate gating model to purify a population of interest,
 B cells are usually identified by the expression of CD20, encoded by MS4A1
 
 ```{r}
-# model initialization
-my_scGate_model <- edit_model()  
-
-# add a signature/set of marker genes
-my_scGate_model <- edit_model(model = my_scGate_model, name = "Bcell", signature = c("MS4A1"))
+# create a simple gating model for scGate
+my_scGate_model <- gating_model(name = "Bcell", signature = c("MS4A1"))
 my_scGate_model
 ```
 
@@ -93,8 +90,8 @@ With this very simple model, >99% (Recall) are isolated with a >99% purity (Prec
 
 In another example, let's gate plasmacytoid dendritic cells (pDCs), which can be isolated using marker LILRA4 (eg https://pubmed.ncbi.nlm.nih.gov/30395816/)
 ```{r}
-my_scGate_model <- edit_model()  # model initizlization
-my_scGate_model <- edit_model(model = my_scGate_model, name = "pDC", signature = c("LILRA4"))  # add one positive signature
+my_scGate_model <- gating_model(name = "pDC", signature = c("LILRA4"))  # add one positive signature
+my_scGate_model
 
 # run the model
 obj <- scGate(data = obj, model = my_scGate_model, assay = DefaultAssay(obj))
@@ -111,8 +108,7 @@ scGate::performance.metrics(obj$cell_type=="pDC",obj$is.pure=="Pure")
 
 Another example for gating NKs, which express KLRD1. However, KLRD1 can also be expreseed by some T cell subsets, so we can filter these out by including "negative" T cell markers such as CD3D
 ```{r}
-my_scGate_model <- edit_model()  
-my_scGate_model <- edit_model(model = my_scGate_model, name = "NK", signature = c("KLRD1","CD3D-"))  
+my_scGate_model <- gating_model(name = "NK", signature = c("KLRD1","CD3D-"))  
 
 # run the model
 obj <- scGate(data = obj, model = my_scGate_model, assay = DefaultAssay(obj))
@@ -143,8 +139,7 @@ Here we have non-immune populations such as malignant/cancer cells (Mal), Endoth
 We can try to purify a broadly defined cell population, for instance, all immune cells, using pan-immune cell marker CD45 encoded by PTPRC:
 
 ```{r}
-my_scGate_model <- edit_model()  # model initizlization
-my_scGate_model <- edit_model(model = my_scGate_model, name = "immune", signature = c("PTPRC")) 
+my_scGate_model <- gating_model(name = "immune", signature = c("PTPRC")) 
 obj <- scGate(data = obj, model = my_scGate_model, assay = DefaultAssay(obj))
 DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1) 
 ggsave("plots/umap.jerby.immune.pdf",width = 4, height = 4)
@@ -154,13 +149,13 @@ ggsave("plots/umap.jerby.immune.pdf",width = 4, height = 4)
 scGate::performance.metrics(obj$cell_type %in% c("B.cell","NK","T.CD4","T.CD8","T.cell","Macrophage"),obj$is.pure=="Pure")
 ```
 
-Now let's try to recover macrophages (eg using common markers CD68 and FCGR1A). Instead of purifying macrophages directly from the whole tissue, we can try to do it in two steps (hierarchical strategy): i) isolate immune cells as in the previous example, ii) isolate macrophages from immune cells. 
+Now let's try to recover macrophages (eg using common markers CD68 and FCGR1A). 
+Instead of purifying macrophages directly from the whole tissue, we can try to do it in two steps (hierarchical strategy): i) isolate immune cells as in the previous example, ii) isolate macrophages from immune cells. 
 Hierarchical gating models can be specified in scGate using parameter "level",  as follows:
 
 ```{r}
-my_scGate_model <- edit_model()  # model initizlization
-my_scGate_model <- edit_model(model = my_scGate_model, name = "immune", signature = c("PTPRC"), level = 1)  # add positive signature at first step
-my_scGate_model <- edit_model(model = my_scGate_model, name = "macrophage", signature = c("CD68","FCGR1A"), level = 2)  # add positive signature at second step
+my_scGate_model <- gating_model(name = "immune", signature = c("PTPRC"), level = 1)  # initialize model with one positive signature
+my_scGate_model <- gating_model(model = my_scGate_model, name = "macrophage", signature = c("CD68","FCGR1A"), level = 2)  # add positive signature at second step
 obj <- scGate(data = obj, model = my_scGate_model, assay = DefaultAssay(obj))
 DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1) 
 ggsave("plots/umap.jerby.macro.pdf",width = 4, height = 4)
@@ -181,8 +176,8 @@ wrap_plots(plot_levels(obj))
 
 ## Editing models
 scGate models of arbitrary complexity can be easily constructed to achieve high purification performance.
-These gating models can be written using the edit_model(), and manually edited using eg R's fix().
-You can also export your basic model created with edit_model() as tabulated text and edit on Excel
+These gating models can be written using the gating_model() function, and manually edited using eg R's fix().
+You can also export your basic model as tabulated text and edit it manually on Excel
 ```{r, eval=F}
 fix(my_scGate_model) # edit locally in R
 write.table(my_scGate_model,"test.tsv",sep="\t") # export and then edit on Excel
@@ -195,8 +190,7 @@ my_scGate_model_edited <- scGate::load_scGate_model("test.tsv") # tabulated-text
 We provide a built-in function `test_my_model` to automatically evaluate the performance of a gating model using 3 pre-annotated testing datasets:
 
 ```{r, fig.width=8,fig.height=12,collapse = T, message = F}
-my_scGate_model <- edit_model()  
-my_scGate_model <- edit_model(model = my_scGate_model, name = "Bcell", signature = c("MS4A1"))
+my_scGate_model <- gating_model(name = "Bcell", signature = c("MS4A1"))
 panBcell.performance <- test_my_model(my_scGate_model, target = "Bcell")
 panBcell.performance$performance
 ```
@@ -205,7 +199,7 @@ We see that in one of the datasets our simple model did not have an excellent pr
 We can refine it, for instance, by removing potentially contaminating T cell genes (CD3D) and try again:
 
 ```{r, fig.width=8,fig.height=12,collapse = T, message = F}
-my_scGate_model <- edit_model(model = my_scGate_model, name = "Tcell", signature = c("CD3D"),negative = T)
+my_scGate_model <- gating_model(model = my_scGate_model, name = "Tcell", signature = c("CD3D"),negative = T)
 panBcell.performance <- test_my_model(my_scGate_model, target = "Bcell")
 panBcell.performance$performance
 
