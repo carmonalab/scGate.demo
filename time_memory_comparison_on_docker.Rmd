@@ -22,16 +22,20 @@ library(dplyr)
 library(BiocParallel)
 library(patchwork)
 library(parallel)
+#install.packages("Seurat")
+#library(Seurat)
 ```
 
 
 
 # Get some testing datasets
 ```{r}
-testing.datasets <- scGate:::get_testing_data(version = 'hsa.latest')
-dataset.list.all <- readRDS("~/Datasets/human.sets.expanded.singler.rds")
-dataset.list.all <- dataset.list.all["bassez.c1"]
+#testing.datasets <- scGate:::get_testing_data(version = 'hsa.latest')
+whole.obj <- readRDS("~/Datasets/human.sets.expanded.singler.rds")
+whole.obj <- whole.obj[["bassez.c1"]]
 gc()
+whole.obj <- subset(whole.obj, cells = sample(Cells(whole.obj),50000))
+gc(reset=T)
 ```
 
 ## Load Models from tables and impute them (if were necessary)
@@ -46,13 +50,13 @@ model$levels%>%unique()%>%length()
 timing <- list()
 memory <- list()
 ncells <- c(500,1000,5000,10000,25000,50000)
-whole.obj <- dataset.list.all$bassez.c1
+
 ```
 
 ### Load training data for SIngleR
 ```{r}
 hpca.se <- HumanPrimaryCellAtlasData()  ## reference
-param <- MulticoreParam(workers = 8)    # configure parallelization
+param <- MulticoreParam(workers = 4)    # configure parallelization
 ```
 
 
@@ -70,7 +74,7 @@ for(downsample in ncells){
   gc1 <- gc(reset = TRUE)
   t0 <- Sys.time()
   out <- tryCatch({
-          test <- scGate(subseted.obj, model = model, ncores = 8)
+          test <- scGate(subseted.obj, model = model, ncores = 4)
       },
     error=function(cond) {
       message(cond)
