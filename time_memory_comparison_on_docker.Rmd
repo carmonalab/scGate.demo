@@ -96,6 +96,7 @@ for(downsample in ncells){
   memory[[paste0("Ncell_",downsample)]][["scGate"]] <- memPeak 
   
 }
+gc(reset = T)
 ```
 
 
@@ -140,7 +141,7 @@ for(downsample in ncells){
 
 ```{r}
 results <- list(timing = timing, memory = memory)
-saveRDS(results,"/home/rstudio/Figures/time_memory_SingleR_scGate.rds")
+saveRDS(results,"/home/rstudio/Figures/time_memory_SingleR_scGate_4c_16gb_IntelI5.rds")
 ```
 
 ```{r}
@@ -178,8 +179,8 @@ plt.mem <- ggplot(res.memory,aes(x=Ncell,y = memory,
 
 plt <- plt.time + plt.mem
 plt
-ggsave(filename = "~/Figures/time_memory_benchmark_docker.pdf",plot = plt,width = 10,height = 5)
-ggsave(filename = "~//Figures/time_benchmark_docker.png",plot = plt,width = 10,height = 5)
+ggsave(filename = "~/Figures/time_memory_benchmark_docker_4c_16gb_IntelI5.pdf",plot = plt,width = 10,height = 5)
+ggsave(filename = "~/Figures/time_benchmark_docker_4c_16gb_IntelI5.png",plot = plt,width = 10,height = 5)
 
 ```
 
