@@ -9,4 +9,6 @@ git clone https://github.com/carmonalab/scGate.demo.git
 
 Then open the project `scGate.demo.Rproj` in Rstudio and follow the commands in one of the available notebooks.
 
-For a basic demo of the main functionalities of scGate, start from [scGate.demo.Rmd](https://github.com/carmonalab/scGate.demo/blob/master/scGate.demo.Rmd) - find also a [pre-compiled html version]https://carmonalab.github.io/scGate.demo/scGate.basic.usage.html) for this demo.
+For a basic demo of the main functionalities of scGate, start from [scGate.demo.Rmd](https://github.com/carmonalab/scGate.demo/blob/master/scGate.demo.Rmd) - find also a [pre-compiled html version](https://carmonalab.github.io/scGate.demo/scGate.basic.usage.html) for this demo.
+
+The rendered output is avaiable [here](https://carmonalab.github.io/scGate.demo/)
