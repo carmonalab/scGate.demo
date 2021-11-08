@@ -17,12 +17,14 @@ knit: (function(input_file, encoding) {
 ## Setup environment
 
 ```{r, message=F, warning=F,results=F}
+library(renv)
 renv::activate()
 renv::restore()
+
 library(ggplot2)
 library(dplyr)
 library(patchwork)
-remotes::install_github("carmonalab/scGate",ref = "dev")
+#remotes::install_github("carmonalab/scGate",ref = "v1.0.0")
 library(scGate)
 ```
 
@@ -212,12 +214,10 @@ We also provide some pre-defined gating models, these can be retrieved with get_
 
 Load default models from DB
 ```{r,collapse=TRUE}
-models.DB <- scGate::get_scGateDB(force_update = T)
+models.DB <- scGate::get_scGateDB()
 
 names(models.DB$human$generic)
-
 names(models.DB$mouse$generic)
-
 ```
 
 ### Visualizing gating models
