@@ -6,7 +6,7 @@
     white-space: pre;
 }
 #nav-top span.glyphicon {
-  color: #0bb04d;
+  color: #7f35fa;
   font-size: 28px;
 }
 #sidebar header{ /*Background colors*/
@@ -18,11 +18,11 @@
     font-weight:bold;
     text-transform:uppercase;
     font-size:80%;
-    color:#0bb04d;
+    color:#7f35fa;
     white-space:nowrap}
 #sidebar h2{
     z-index:200;
-    background-color:#0bb04d;
+    background-color:#7f35fa;
     text-align:center;
     padding:0.809em;
     display:block;
@@ -34,5 +34,5 @@
 h1,h2,h3,h4,h5,h6,legend{
     font-family:"Roboto Slab","ff-tisa-web-pro","Georgia",Arial,sans-serif;
     font-weight:700;
-    color: #0bb04d;
+    color: #7f35fa;
 }

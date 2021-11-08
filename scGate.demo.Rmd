@@ -1,5 +1,5 @@
 ---
-title: "scGate: Purification of cell types from complex single-cell RNA-seq data. Basic examples."
+title: "scGate: Purification of cell types from complex single-cell RNA-seq data"
 author: "M. Andreatta, A. Berenstein and S. Carmona"
 date: "29/09/2021"
 output:
@@ -13,6 +13,8 @@ knit: (function(input_file, encoding) {
   rmarkdown::render(input_file, encoding=encoding,
  output_file=file.path(dirname(input_file), out_dir, 'scGate.basic.usage.html'))})
 ---
+
+This demo illustrates the main functionalities of the [scGate packge](https://github.com/carmonalab/scGate.demo) for purifying cell type populations on interest from heterogeneous single-cell cell datasets. We start from basic, single-gene filters and move gradually to more complex hierarchical models composed of multi-gebe signatures. We show these examples on public data, but you should be able to adapt them to your own single-cell datasets.
 
 ## Setup environment
 
