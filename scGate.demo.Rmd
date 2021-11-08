@@ -83,7 +83,8 @@ my_scGate_model
 Run scGate 
 ```{r, collapse=T}
 obj <- scGate(data = obj, model = my_scGate_model, assay = DefaultAssay(obj))
-DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1) 
+DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1)
+#ggsave("plots/umap.Hao.Bcell.pdf",width = 4, height = 4)
 ```
 
 Because in this demo example we know the ground truth cell types (at least, as defined by the authors), we can evaluate scGate predictive performance in terms of precision/positive predictive value, recall/sensitivity, and accuracy using Matthews Correlation Coefficient (MCC)
@@ -102,7 +103,6 @@ my_scGate_model
 # run the model
 obj <- scGate(data = obj, model = my_scGate_model, assay = DefaultAssay(obj))
 DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1)
-#ggsave("plots/umap.Hao.Bcell.pdf",width = 4, height = 4)
 ```
 
 ```{r}
