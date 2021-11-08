@@ -78,9 +78,7 @@ my_scGate_model <- gating_model(name = "Bcell", signature = c("MS4A1"))
 my_scGate_model
 ```
 
-## Purifying a cell population of interest with scGate
-
-Run scGate 
+Run scGate to purify B cells with the simple single-gene model 
 ```{r, collapse=T}
 obj <- scGate(data = obj, model = my_scGate_model, assay = DefaultAssay(obj))
 DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1)
@@ -92,8 +90,7 @@ Because in this demo example we know the ground truth cell types (at least, as d
 scGate::performance.metrics(grepl("^B ",obj$cell_type),obj$is.pure=="Pure")
 ```
 
-With this very simple model, >99% (Recall) are isolated with a >99% purity (Precision), and and overall accuracy/MCC >99%
-
+With this very simple model, >99% (Recall) are isolated with a >99% purity (Precision), and overall classification performance (MCC) >99%
 
 Another example: we can isolate **plasmacytoid dendritic cells (pDCs)**, defined using the marker LILRA4 (e.g. https://pubmed.ncbi.nlm.nih.gov/30395816/)
 ```{r}
@@ -117,14 +114,13 @@ scGate::performance.metrics(obj$cell_type=="pDC",obj$is.pure=="Pure")
 ```{r}
 my_scGate_model <- gating_model(name = "NK", signature = c("KLRD1","CD3D-"))  
 
-# run the model
 obj <- scGate(data = obj, model = my_scGate_model, assay = DefaultAssay(obj))
 DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1) 
 #ggsave("plots/umap.Hao.NK.pdf",width = 4, height = 4)
 ```
 
 
-With this simple model, >97% of NKs (recall) are isolated with a 96% purity (Precision), and overall accuracy/MCC of 96%
+With this simple model, >97% of NKs (recall) are isolated with a 96% purity (Precision), and overall classification performance (MCC) of 96%
 ```{r}
 scGate::performance.metrics(grepl("^NK",obj$cell_type),obj$is.pure=="Pure")
 ```
@@ -134,7 +130,7 @@ scGate::performance.metrics(grepl("^NK",obj$cell_type),obj$is.pure=="Pure")
 
 In the examples above, we have been using a single-cell dataset derived from blood (PBMC). When working with more complex tissues, such as tumors, we might need to apply multiple levels of gating to isolate the population of interest. scGate allows to purify by steps, using a hierarchical gating model - for example, first purifying immune cells, and among the immune cells the cell type of interest.
 
-Let's explore the whole tumor dataset by Jerby-Arnon et al. 2018 (https://doi.org/10.1016/j.cell.2018.09.006), with the cell type annotations provided by the authors.
+Let's explore (a downsampled version of) the whole tumor dataset by Jerby-Arnon et al. 2018 (https://doi.org/10.1016/j.cell.2018.09.006), with the cell type annotations provided by the authors.
 ```{r,collapse =T}
 obj <- testing.datasets[["JerbyArnon"]]
 DimPlot(obj, label = T, repel = T, group.by = "cell_type") + theme(legend.position = "none", aspect.ratio = 1)
@@ -224,8 +220,10 @@ We also provide some pre-defined gating models, these can be retrieved with the 
 models.DB <- scGate::get_scGateDB()
 
 names(models.DB$human$generic)
+
 names(models.DB$mouse$generic)
 ```
+
 
 ## Visualizing gating models
 
@@ -238,6 +236,7 @@ plt.tree <- scGate::plot_tree(my_scGate_model)
 plt.tree
 ```
 
+At each level in the tree, [UCell](https://github.com/carmonalab/UCell) scores are evaluated both for positive and negative signatures. Only cells with sufficiently high UCell scores for at least one positive signature, and consistently low UCell scores for all negative signatures will be passed on to the next level in the tree. Upon reaching the final branch of the tree, only cells that passed all gating levels are labeled as "Pure" for the population of interest.
 
 We can run the Plasma cell model on the whole-tumor dataset by Zilionis et al. (https://doi.org/10.1016/j.immuni.2019.03.009)
 
@@ -270,7 +269,7 @@ scGate::performance.metrics(actual = obj$Plasma_cell, pred = obj$is.pure== "Pure
 
 ## Further reading
 
-The scGate package and installation instructions are available at: [scGate packge](https://github.com/carmonalab/scGate)
+The scGate package and installation instructions are available at: [scGate package](https://github.com/carmonalab/scGate)
 
 The code for this demo can be found on [GitHub](https://github.com/carmonalab/scGate.demo)
 
