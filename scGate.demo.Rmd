@@ -1,7 +1,7 @@
 ---
-title: "scGate: Purification of cell types from complex single-cell RNA-seq data"
+title: "scGate: marker-based purification of cell types from single-cell RNA-seq datasets"
 author: "M. Andreatta, A. Berenstein and S. Carmona"
-date: "29/09/2021"
+date: "08/11/2021"
 output:
   rmdformats::readthedown:
     self-contained: true
@@ -14,9 +14,9 @@ knit: (function(input_file, encoding) {
  output_file=file.path(dirname(input_file), out_dir, 'scGate.basic.usage.html'))})
 ---
 
-This demo illustrates the main functionalities of the [scGate packge](https://github.com/carmonalab/scGate.demo) for purifying cell type populations on interest from heterogeneous single-cell cell datasets. We start from basic, single-gene filters and move gradually to more complex hierarchical models composed of multi-gebe signatures. We show these examples on public data, but you should be able to adapt them to your own single-cell datasets.
+This demo illustrates the main functionalities of the [scGate package](https://github.com/carmonalab/scGate) for purifying cell type populations of interest from heterogeneous single-cell cell datasets. We start from basic, single-gene filters and move gradually to more complex hierarchical models composed of multi-gene signatures. We show these examples on public data, but you should be able to adapt them to your own single-cell datasets.
 
-## Setup environment
+## Setting up the environment
 
 ```{r, message=F, warning=F,results=F}
 library(renv)
@@ -26,7 +26,7 @@ renv::restore()
 library(ggplot2)
 library(dplyr)
 library(patchwork)
-#remotes::install_github("carmonalab/scGate",ref = "v1.0.0")
+remotes::install_github("carmonalab/scGate",ref = "v1.0.0")
 library(scGate)
 ```
 
@@ -53,46 +53,48 @@ opts_knit$set(width=75)
 ```
 
 
-## Load demo datasets 
+## Loading demo datasets
+
+This helper function retrieves some toy datasets with cell type annotations, useful to test our models:
 ```{r}
 testing.datasets <- scGate::get_testing_data(version = 'hsa.latest')
-dir.create('./plots')
 ```
 
-Let's play with a PBMC dataset ("Satija") from Hao et al 2021 (https://doi.org/10.1016/j.cell.2021.04.048)
+Let's play with a (downsampled) dataset of PBMCs from Hao et al. 2021 (https://doi.org/10.1016/j.cell.2021.04.048)
 ```{r,collapse =T}
 obj <- testing.datasets[["Satija"]]
-DimPlot(obj, label = T, repel = T, group.by = "celltype.l1") + theme(legend.position = "none", aspect.ratio = 1) 
-ggsave("plots/umap.satija.celltype.3.pdf",width = 3, height = 3)
+DimPlot(obj, label = T, repel = T, group.by = "celltype.l1") + theme(legend.position = "none", aspect.ratio = 1)
+#ggsave("plots/umap.Hao.celltype.pdf",width = 4, height = 4)
 ```
 
 ## Creating a simple gating model
 
-Now let's setup a simple scGate gating model to purify a population of interest, for instance, B cells.
-B cells are usually identified by the expression of CD20, encoded by MS4A1
+Now let's setup a simple scGate gating model to purify a population of interest - here **B cells**.
+
+B cells are usually identified by the expression of CD20, encoded by MS4A1.
 
 ```{r}
-# create a simple gating model for scGate
 my_scGate_model <- gating_model(name = "Bcell", signature = c("MS4A1"))
 my_scGate_model
 ```
 
-## Purify a cell population of interest with scGate
+## Purifying a cell population of interest with scGate
+
+Run scGate 
 ```{r, collapse=T}
-# run scGate
 obj <- scGate(data = obj, model = my_scGate_model, assay = DefaultAssay(obj))
 DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1) 
-ggsave("plots/umap.satija.Bcell.pdf",width = 4, height = 4)
 ```
 
-Because in this demo example we know the ground truth (at least, as defined by the authors), let's evaluate scGate predictive performance in terms of precision/positive predictive value, recall/sensitivity, and accuracy using Matthews Correlation Coefficient (MCC)
+Because in this demo example we know the ground truth cell types (at least, as defined by the authors), we can evaluate scGate predictive performance in terms of precision/positive predictive value, recall/sensitivity, and accuracy using Matthews Correlation Coefficient (MCC)
 ```{r}
 scGate::performance.metrics(grepl("^B ",obj$cell_type),obj$is.pure=="Pure")
 ```
+
 With this very simple model, >99% (Recall) are isolated with a >99% purity (Precision), and and overall accuracy/MCC >99%
 
 
-In another example, let's gate plasmacytoid dendritic cells (pDCs), which can be isolated using marker LILRA4 (eg https://pubmed.ncbi.nlm.nih.gov/30395816/)
+Another example: we can isolate **plasmacytoid dendritic cells (pDCs)**, defined using the marker LILRA4 (e.g. https://pubmed.ncbi.nlm.nih.gov/30395816/)
 ```{r}
 my_scGate_model <- gating_model(name = "pDC", signature = c("LILRA4"))  # add one positive signature
 my_scGate_model
@@ -100,7 +102,7 @@ my_scGate_model
 # run the model
 obj <- scGate(data = obj, model = my_scGate_model, assay = DefaultAssay(obj))
 DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1)
-
+#ggsave("plots/umap.Hao.Bcell.pdf",width = 4, height = 4)
 ```
 
 ```{r}
@@ -110,78 +112,81 @@ scGate::performance.metrics(obj$cell_type=="pDC",obj$is.pure=="Pure")
 
 ## Gating models with positive and negative markers
 
-Another example for gating NKs, which express KLRD1. However, KLRD1 can also be expreseed by some T cell subsets, so we can filter these out by including "negative" T cell markers such as CD3D
+**Natural killer cells (NKs)** are characterized by the marker KLRD1. However, KLRD1 can also be expressed by some T cell subsets. To improve sensitivity to isolate NKs, we can include in our gating strategy "negative" T cell markers such as CD3D.
+
 ```{r}
 my_scGate_model <- gating_model(name = "NK", signature = c("KLRD1","CD3D-"))  
 
 # run the model
 obj <- scGate(data = obj, model = my_scGate_model, assay = DefaultAssay(obj))
 DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1) 
-ggsave("plots/umap.satija.NK.pdf",width = 4, height = 4)
-
+#ggsave("plots/umap.Hao.NK.pdf",width = 4, height = 4)
 ```
 
-Let's evaluate performance
+
+With this simple model, >97% of NKs (recall) are isolated with a 96% purity (Precision), and overall accuracy/MCC of 96%
 ```{r}
 scGate::performance.metrics(grepl("^NK",obj$cell_type),obj$is.pure=="Pure")
 ```
 
-With this simple model, >97% of NKs (recall) are isolated with a 96% purity (Precision), and overall accuracy/MCC of 96%
-
 
 ## Hierarchical gating models
 
-Here we have been using a dataset derived from blood (PBMC). When working with more complex tissues, such as tumors, we might need to apply more stringent criteria. That's why scGate allows to purify by steps, using a hierarchical gating model.
+In the examples above, we have been using a single-cell dataset derived from blood (PBMC). When working with more complex tissues, such as tumors, we might need to apply multiple levels of gating to isolate the population of interest. scGate allows to purify by steps, using a hierarchical gating model - for example, first purifying immune cells, and among the immune cells the cell type of interest.
 
-Let's explore the whole tumor dataset by Jerby-Arnon et al 2018 (https://doi.org/10.1016/j.cell.2018.09.006)
+Let's explore the whole tumor dataset by Jerby-Arnon et al. 2018 (https://doi.org/10.1016/j.cell.2018.09.006), with the cell type annotations provided by the authors.
 ```{r,collapse =T}
 obj <- testing.datasets[["JerbyArnon"]]
-DimPlot(obj, label = T, repel = T, group.by = "cell_type") + theme(legend.position = "none", aspect.ratio = 1) 
-ggsave("plots/umap.jerby.celltype.3.pdf",width = 3, height = 3)
+DimPlot(obj, label = T, repel = T, group.by = "cell_type") + theme(legend.position = "none", aspect.ratio = 1)
+#ggsave("plots/umap.jerby.celltype.pdf",width = 4, height = 4)
 ```
-Here we have non-immune populations such as malignant/cancer cells (Mal), Endothelial cells (Endo) and cancer-associated fibroblasts (CAF).
-We can try to purify a broadly defined cell population, for instance, all immune cells, using pan-immune cell marker CD45 encoded by PTPRC:
+
+The dataset comprises non-immune populations such as malignant/cancer cells (Mal), Endothelial cells (Endo) and cancer-associated fibroblasts (CAF).
+We can try to purify first all immune cells, using pan-immune cell marker CD45 (encoded by the gene PTPRC):
 
 ```{r}
 my_scGate_model <- gating_model(name = "immune", signature = c("PTPRC")) 
 obj <- scGate(data = obj, model = my_scGate_model, assay = DefaultAssay(obj))
-DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1) 
-ggsave("plots/umap.jerby.immune.pdf",width = 4, height = 4)
+DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1)
+#ggsave("plots/umap.jerby.immune.pdf",width = 4, height = 4)
 ```
 
 ```{r}
 scGate::performance.metrics(obj$cell_type %in% c("B.cell","NK","T.CD4","T.CD8","T.cell","Macrophage"),obj$is.pure=="Pure")
 ```
 
-Now let's try to recover macrophages (eg using common markers CD68 and FCGR1A). 
-Instead of purifying macrophages directly from the whole tissue, we can try to do it in two steps (hierarchical strategy): i) isolate immune cells as in the previous example, ii) isolate macrophages from immune cells. 
+From the immmune cells, we can generate a simple gating model to purify **macrophages** (using common markers CD68 and FCGR1A). 
+
+Instead of purifying macrophages directly from the whole tissue, we can set up a hierarchial scGate model to: i) isolate immune cells as in the previous example, ii) isolate macrophages from immune cells. 
+
 Hierarchical gating models can be specified in scGate using parameter "level",  as follows:
 
 ```{r}
 my_scGate_model <- gating_model(name = "immune", signature = c("PTPRC"), level = 1)  # initialize model with one positive signature
 my_scGate_model <- gating_model(model = my_scGate_model, name = "macrophage", signature = c("CD68","FCGR1A"), level = 2)  # add positive signature at second step
 obj <- scGate(data = obj, model = my_scGate_model, assay = DefaultAssay(obj))
-DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1) 
-ggsave("plots/umap.jerby.macro.pdf",width = 4, height = 4)
+DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1)
+#ggsave("plots/umap.jerby.macro.pdf",width = 4, height = 4)
 ```
 
 ```{r}
 scGate::performance.metrics(obj$cell_type %in% c("Macrophage"),obj$is.pure=="Pure")
 ```
 
-Here we isolated 92% of macrophages with a 91% purity (according to annotation by Jerby-Arnon et al). We could easily improve PREC and REC by adding more positive and negative markers, respectively (e.g. removing lymphocytes)
+Here we isolated 92% of macrophages with a 91% purity (according to annotation by Jerby-Arnon et al.). We could easily improve PREC and REC by adding more positive and negative markers, respectively (e.g. removing lymphocytes)
 
 
-We can see how the two-level gating model worked in each step using scGate's plot_levels.
-We see on the left the immune cell purification step, and on the right, the macrophage purifications step.
+We can see how the two-level gating model worked in each step using the function `plot_levels`.
+The first plot shows the purification step for CD45+ cells, the second plot the isolation of macrophages.
 ```{r}
 wrap_plots(plot_levels(obj))
 ```
 
 ## Editing models
 scGate models of arbitrary complexity can be easily constructed to achieve high purification performance.
-These gating models can be written using the gating_model() function, and manually edited using eg R's fix().
-You can also export your basic model as tabulated text and edit it manually on Excel
+These gating models can be written using the gating_model() function, and manually edited using the `fix()` function.
+
+You can also export your basic model as tabulated text and edit it manually in Excel.
 ```{r, eval=F}
 fix(my_scGate_model) # edit locally in R
 write.table(my_scGate_model,"test.tsv",sep="\t") # export and then edit on Excel
@@ -199,7 +204,8 @@ panBcell.performance <- test_my_model(my_scGate_model, target = "Bcell")
 panBcell.performance$performance
 ```
 
-We see that in one of the datasets our simple model did not have an excellent precision (85%).
+In one of the datasets, precision was not optimal (85%).
+
 We can refine it, for instance, by removing potentially contaminating T cell genes (CD3D) and try again:
 
 ```{r, fig.width=8,fig.height=12,collapse = T, message = F}
@@ -208,13 +214,12 @@ panBcell.performance <- test_my_model(my_scGate_model, target = "Bcell")
 panBcell.performance$performance
 
 ```
-Now performance is very high for the three datasets.
+Predictive performance is now very high for the three sample datasets.
 
 ## Using pre-defined gating models
 
-We also provide some pre-defined gating models, these can be retrieved with get_scGateDB()
+We also provide some pre-defined gating models, these can be retrieved with the `get_scGateDB()` function:
 
-Load default models from DB
 ```{r,collapse=TRUE}
 models.DB <- scGate::get_scGateDB()
 
@@ -222,11 +227,11 @@ names(models.DB$human$generic)
 names(models.DB$mouse$generic)
 ```
 
-### Visualizing gating models
+## Visualizing gating models
 
-To visualize complex models in tree-like structures, we provide plot_tree() function
-This is a model to purify plasma (B) cells with high accuracy
+To visualize complex models in tree-like structures, we provide the `plot_tree()` function.
 
+The following is a model to purify **plasma (B) cells** with high accuracy:
 ```{r message=F,results=F}
 my_scGate_model <- models.DB$human$generic$Plasma_cell
 plt.tree <- scGate::plot_tree(my_scGate_model)
@@ -234,32 +239,51 @@ plt.tree
 ```
 
 
-Run an example, now on another tumor dataset by Zilionis et al 2019 (https://doi.org/10.1016/j.immuni.2019.03.009)
+We can run the Plasma cell model on the whole-tumor dataset by Zilionis et al. (https://doi.org/10.1016/j.immuni.2019.03.009)
 
 ```{r}
 obj <- testing.datasets[["Zilionis"]]
 DimPlot(obj, label = T, repel = T, group.by = "cell_type") + theme(legend.position = "none", aspect.ratio = 1) 
 ```
 
-
+Run scGate
 ```{r, collapse=T}
-# run scGate
 obj <- scGate(obj, model = my_scGate_model)
 DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1) 
 ```
 
-Visualizing filtering results by level. We can see how the purity increases at each level.
-
+Visualize filtering results by level. We can see how the purity increases at each level.
 ```{r,fig.height=8,fig.width=10 }
 plots <- scGate::plot_levels(obj)
-plots[["annotation"]] <- DimPlot(obj, group.by = "cell_type",label = T, repel =T,label.size = 3) + ggtitle("Author's manual annot") + NoLegend() 
 wrap_plots(plots, ncol = 2)
+```
+
+```{r,fig.height=5,fig.width=6}
+DimPlot(obj, group.by = "cell_type",label = T, repel =T,label.size = 3) + ggtitle("Author's manual annot") + NoLegend() 
 ```
 
 Evaluate performance of filtering compared to original annotation
 ```{r,collapse=T}
-perf.scGate = scGate::performance.metrics(actual = obj$Plasma_cell, pred = obj$is.pure== "Pure")
-perf.scGate
+scGate::performance.metrics(actual = obj$Plasma_cell, pred = obj$is.pure== "Pure")
 ```
+
+
+## Further reading
+
+The scGate package and installation instructions are available at: [scGate packge](https://github.com/carmonalab/scGate)
+
+The code for this demo can be found on [GitHub](https://github.com/carmonalab/scGate.demo)
+
+## References
+
+* Hao, Y., Hao, S., Andersen-Nissen, E., Mauck III, W. M., Zheng, S., Butler, A., ... & Satija, R. (2021). *Integrated analysis of multimodal single-cell data*. Cell.
+
+* Murray, L., Xi, Y., & Upham, J. W. (2019). *CLEC4C gene expression can be used to quantify circulating plasmacytoid dendritic cells.* Journal of immunological methods, 464, 126-130.
+
+* Jerby-Arnon, L., Shah, P., Cuoco, M. S., Rodman, C., Su, M. J., Melms, J. C., ... & Regev, A. (2018). *A cancer cell program promotes T cell exclusion and resistance to checkpoint blockade.* Cell, 175(4), 984-997.
+
+* Zilionis, R., Engblom, C., Pfirschke, C., Savova, V., Zemmour, D., Saatcioglu, H. D., ... & Klein, A. M. (2019). *Single-cell transcriptomics of human and mouse lung cancers reveals conserved myeloid populations across individuals and species.* Immunity, 50(5), 1317-1334.
+
+
 
 

@@ -2,8 +2,9 @@
 .Rhistory
 .RData
 .Ruserdata
-aux/
 plots/
 input/
 renv/
 docs/scGate.basic.usage_files/
+scGate.demo_cache/
+scGateDB/
