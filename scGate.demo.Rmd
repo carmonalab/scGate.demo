@@ -112,7 +112,7 @@ scGate::performance.metrics(obj$cell_type=="pDC",obj$is.pure=="Pure")
 **Natural killer cells (NKs)** are characterized by the marker KLRD1. However, KLRD1 can also be expressed by some T cell subsets. To improve sensitivity to isolate NKs, we can include in our gating strategy "negative" T cell markers such as CD3D.
 
 ```{r}
-my_scGate_model <- gating_model(name = "NK", signature = c("KLRD1","CD3D-"))  
+my_scGate_model <- gating_model(name = "NK", signature = c("NCAM1+","KLRD1+","CD3D-"))  
 
 obj <- scGate(data = obj, model = my_scGate_model, assay = DefaultAssay(obj))
 DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1) 
@@ -120,7 +120,7 @@ DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.rat
 ```
 
 
-With this simple model, >97% of NKs (recall) are isolated with a 96% purity (Precision), and overall classification performance (MCC) of 96%
+With this simple model, 95% of NKs (recall) are isolated with a 100% purity (Precision), and overall classification performance (MCC) of 97%
 ```{r}
 scGate::performance.metrics(grepl("^NK",obj$cell_type),obj$is.pure=="Pure")
 ```
