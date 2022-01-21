@@ -26,6 +26,7 @@ renv::restore()
 library(ggplot2)
 library(dplyr)
 library(patchwork)
+library(viridis)
 remotes::install_github("carmonalab/scGate",ref = "v1.0.0")
 library(scGate)
 ```
@@ -171,6 +172,12 @@ scGate::performance.metrics(obj$cell_type %in% c("Macrophage"),obj$is.pure=="Pur
 
 Here we isolated 92% of macrophages with a 91% purity (according to annotation by Jerby-Arnon et al.). We could easily improve PREC and REC by adding more positive and negative markers, respectively (e.g. removing lymphocytes)
 
+
+We can always inspect the distribution of UCell scores calculated for each signature. For example:
+```{r}
+FeaturePlot(obj, features=c("macrophage_UCell")) + scale_color_viridis(option="D")
+#ggsave("plots/umap.jerby.macro.UCell.pdf",width = 4, height = 4)
+```
 
 We can see how the two-level gating model worked in each step using the function `plot_levels`.
 The first plot shows the purification step for CD45+ cells, the second plot the isolation of macrophages.
