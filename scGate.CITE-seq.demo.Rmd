@@ -1,7 +1,20 @@
 ---
-title: "R Notebook"
-output: html_notebook
+title: "scGate: marker-based purification of cell types from single-cell RNA-seq datasets"
+author: "M. Andreatta, A. Berenstein and S. Carmona"
+date: "25/01/2022"
+output:
+  rmdformats::readthedown:
+    self-contained: true
+    highlight: haddock
+    thumbnails: false
+    css: styles.css
+knit: (function(input_file, encoding) {
+  out_dir <- 'docs';
+  rmarkdown::render(input_file, encoding=encoding,
+ output_file=file.path(dirname(input_file), out_dir, 'scGate.CITE-seq.html'))})
 ---
+
+This demo illustrates the use of [scGate package](https://github.com/carmonalab/scGate) for purifying cell type populations in CITE-seq data. Taking advantage of Hao.et al 2021 dataset, we show how this tool can be used to filter cell types in diferent single-cell modalities, a.k.a. CITE-seq and RNA-seq.
 
 ```{r, message=F, warning=F,results=F}
 renv::activate()
