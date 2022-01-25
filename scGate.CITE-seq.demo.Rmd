@@ -40,7 +40,7 @@ hao <- testing.datasets$Satija
 ```
 
 Let me check distribution in both modalities. 
-```{r, collapse =T}
+```{r, collapse =T,fig.height=4,fig.width=8}
 # sanity check. All points have at least 1000 reads
 p1 <- ggplot(data = hao@meta.data,aes(nCount_ADT, nCount_RNA)) + scale_x_log10()  + scale_y_log10() +
  scale_x_log10(breaks = trans_breaks("log10", function(x) 10^x),
@@ -61,7 +61,7 @@ theme_bw()
 p1 | p2
 ```
 
-```{r,echo=FALSE,warning=F, results=F}
+```{r,echo=FALSE,warning=F, results=F, eval=F}
 #Distribution of ADT signals
 #Distribution of ADT signals
 
@@ -78,9 +78,9 @@ p2 <- boxplot(hao@assays$ADT@data[,sample(seq_len(ncol(hao@assays$ADT@data)),200
 
 
 ## Let me inspect ADT's UMAP distribution and annotations providedby Hao et al. 
-```{r,echo = F, warning=F, results=F}
+```{r, warning=F,collapse =T, fig.width=6,fig.height=5}
 DefaultAssay(hao) <- "ADT"
-DimPlot(hao, group.by = "celltype.l1",label = T,repel = T,reduction = "umap")
+DimPlot(hao, group.by = "celltype.l1",label = T,repel = T,reduction = "umap") + theme(aspect.ratio=1)
 ```
 
 
@@ -89,11 +89,11 @@ Evaluate UCell scores on ADT for Bcells
 # Since ADT data is not sparse and contains a finite number of markers, we need to pass such information to UCell score via maxRank parameter
 maxrank <- nrow(hao@assays$ADT)/2
 hao.u <- AddModuleScore_UCell(hao, features = list("Bcell" = "CD20"), assay = "ADT",maxRank = maxrank)
-FeaturePlot(hao.u, features = "Bcell_UCell") + scale_color_viridis(discrete = FALSE, option="D")
+fp <- FeaturePlot(hao.u, features = "Bcell_UCell") + scale_color_viridis(discrete = FALSE, option="D")
 
 #let me check how the UCell score is distributed among samples. 
-hist(hao.u$Bcell_UCell, breaks = 100)
-
+hp <- ggplot(hao.u@meta.data,aes(x = Bcell_UCell))  + geom_histogram()
+fp | hp
 ```
 
 Now, we can create simple Bcell gating models on both, SCT or ADT assays
@@ -110,8 +110,8 @@ a1 <- DimPlot(hao, group.by = "Bcell.SCT", cols = c(list("Impure" = "gray", "Pur
 
 # We can also check some classical markers on ADT data to characterize the filtered population
 a2 <- VlnPlot(hao,features = c("CD20","CD19"), assay = "ADT",cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0)
-a <- a1 | a2
-a
+a1 + theme(aspect.ratio=1)| a2
+
 #ggsave("plots/hao.ADTviolin.Bcell.bypurity.pdf", plot = a2, height=4, width=4)
 
 ```
@@ -124,7 +124,7 @@ hao <- scGate(data = hao, model = cd20.adt, assay = "ADT",output.col.name = "Bce
 
 b1 <- DimPlot(hao, group.by = "Bcell.ADT", cols = c(list("Impure" = "gray", "Pure" = "green"))) + ggtitle("scGate Bcell on ADT")
 b2 <- VlnPlot(hao,features = "MS4A1", assay = "SCT",cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0)
-b1|b2
+(b1 + theme(aspect.ratio=1))|b2
 ```
 
 Plot data
@@ -164,7 +164,7 @@ hao <- scGate(data = hao, model = t.sct, assay = "SCT")
 c1 <- DimPlot(hao, cols = c(list(Impure = "gray", Pure = "green")))  + ggtitle("Tcells SCT gating")
 c2 <- VlnPlot(hao,features = c(grep("CD3-[1-2]",row.names(hao@assays$ADT),value = T),"CD41"), assay = "ADT",cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0) 
 
-c1|c2
+(c1+ theme(aspect.ratio = 1))|c2
 
 ```
 
@@ -178,15 +178,18 @@ maxrank <- nrow(hao@assays$ADT)/2
 hao <- scGate(data = hao, model = t.adt, assay = "ADT",maxRank = maxrank)
 
 # UMAP plot
-DimPlot(hao, cols = c(list(Impure = "gray", Pure = "green")))  + ggtitle("Tcells ADT gating")
+DimPlot(hao, cols = c(list(Impure = "gray", Pure = "green")))  + ggtitle("Tcells ADT gating") + theme(aspect.ratio=1)
 ```
+
 As can be seen, almost all TCells were lost during the filtering process. 
 When using ADT data, one needs to check if default positive/negative threshold (0.2) are aproppiate.  
 Let me check the UCell score distribution. 
-```{r,fig.width= 4,fig.height=4,warning=F}
+
+```{r,fig.width= 6,fig.height=4,warning=F,collapse =T}
 c00 <- plot_UCell_scores(obj = hao, model = t.adt)
 c00
 ```
+
 According to UCell score distribution, pos.thr = neg.thr = 0.2 seems to be high. 
 Based in the observed bimodal distribution, let me try using a lower threshold pos.thr = neg.thr = 0.05 
 ```{r,fig.width= 15,fig.height=4,warning=F, collapse=TRUE}
@@ -202,7 +205,7 @@ c3 <- DimPlot(hao, cols = c(list(Impure = "gray", Pure = "green")))  + ggtitle("
 
 # Control markers on SCT assay
 c4 <- VlnPlot(hao,features = c("CD3E","CD3D","ITGA2B"), assay = "SCT",cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0) 
-c00|c3|c4
+c00|(c3+ theme(aspect.ratio=1))|c4
 ```
 
 
@@ -287,7 +290,7 @@ plt
 
 ## Platelets
 We start filtering platelets on the SCT assay
-```{r,collapse =T, warning=F, collapse=TRUE}
+```{r,collapse =T, warning=F, collapse=TRUE,fig.height=4,fig.width=8}
 # model definition
 platelet.sct <- gating_model(name = "platelet.sct", signature = c("ITGA2B"))
 #filtering
@@ -296,7 +299,7 @@ hao <- scGate(data = hao, model = platelet.sct, assay = "SCT",output.col.name = 
 d1 <- DimPlot(hao, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1)  + ggtitle("scGate Platelets on SCT")
 # Control markers in ADT assay
 d2 <- VlnPlot(hao,features = c("CD41"), assay = "ADT",cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0) + theme(aspect.ratio = 1)
-d1|d2
+(d1+ theme(aspect.ratio=1))|(d2+ theme(aspect.ratio=1))
 ```
 
 
@@ -304,7 +307,7 @@ Now, let me get Platelets in the ADT assay
 Since CD41 could be expressed in monocites and dendritic cells, we need to add a negative signature. 
 These positive and negative signatures could present different UCell distributions when dealing with ADT data; so we can take advantage here of the flexibility of scGate to fix different thresholds to positive and negative UCell scores
 
-```{r,fig.width=12,fig.height=4.5,warning=F, collapse=TRUE}
+```{r,warning=F, collapse=TRUE}
 platelet.adt <- gating_model(name = "platelet", signature = c("CD41"))
 platelet.adt <- gating_model(model = platelet.adt,name = "MonoDC", signature = c("CD14","CD11c","CD123"),negative = T)
 
@@ -313,9 +316,9 @@ hao <- scGate(data = hao, model = platelet.adt, assay = "ADT",maxRank = maxrank,
 d0 <- plot_UCell_scores(obj = hao, model = platelet.adt)
 d0
 
-d3 <- DimPlot(hao, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1)  + ggtitle("scGate Platelets on SCT")
-d4 <- VlnPlot(hao,features = c("ITGA2B"), assay = "ADT",cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0) + theme(aspect.ratio = 1)
-d0|d3|d4
+d3 <- DimPlot(hao, cols = c(list(Impure = "gray", Pure = "green")))  + ggtitle("scGate Platelets on SCT")
+d4 <- VlnPlot(hao,features = c("ITGA2B"), assay = "ADT",cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0) 
+d0|(d3+theme(aspect.ratio=1))|d4
 
 
 ```
