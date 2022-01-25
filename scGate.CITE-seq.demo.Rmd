@@ -307,18 +307,22 @@ Now, let me get Platelets in the ADT assay
 Since CD41 could be expressed in monocites and dendritic cells, we need to add a negative signature. 
 These positive and negative signatures could present different UCell distributions when dealing with ADT data; so we can take advantage here of the flexibility of scGate to fix different thresholds to positive and negative UCell scores
 
-```{r,warning=F, collapse=TRUE}
+```{r,warning=F, collapse=TRUE,fig.height=7}
 platelet.adt <- gating_model(name = "platelet", signature = c("CD41"))
 platelet.adt <- gating_model(model = platelet.adt,name = "MonoDC", signature = c("CD14","CD11c","CD123"),negative = T)
 
 maxrank <- 40
 hao <- scGate(data = hao, model = platelet.adt, assay = "ADT",maxRank = maxrank,pos.thr = 0.8,neg.thr = 0.05)
-d0 <- plot_UCell_scores(obj = hao, model = platelet.adt)
+d0 <- plot_UCell_scores(obj = hao, model = platelet.adt) + theme(aspect.ratio=1)
 d0
 
-d3 <- DimPlot(hao, cols = c(list(Impure = "gray", Pure = "green")))  + ggtitle("scGate Platelets on SCT")
-d4 <- VlnPlot(hao,features = c("ITGA2B"), assay = "ADT",cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0) 
-d0|(d3+theme(aspect.ratio=1))|d4
+d3 <- DimPlot(hao, cols = c(list(Impure = "gray", Pure = "green")))  + ggtitle("scGate Platelets on SCT") +theme(aspect.ratio=1)
+d4 <- VlnPlot(hao,features = c("ITGA2B"), assay = "ADT",cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0) +theme(aspect.ratio=1)
+lyt = "
+AA
+BC
+"
+wrap_plots(d0,d3,d4,design = lyt)
 
 
 ```
