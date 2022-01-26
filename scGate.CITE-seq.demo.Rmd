@@ -44,7 +44,7 @@ DefaultAssay(hao) <- "ADT"
 DimPlot(hao, group.by = "celltype.l1",label = T,repel = T,reduction = "umap") + theme(aspect.ratio=1)
 ```
 
-How are ADT signals in the same scale, how are they distributed within each cell?
+Are ADT signals in the same scale, how are they distributed within each cell?
 ```{r,echo=FALSE,warning=F}
 par(mfrow=c(1,2))
 boxplot(t(hao@assays$ADT@data), outline=F, xaxt='n', main="ADT signal by protein") 
@@ -70,7 +70,8 @@ And we can apply it on the SCT assay (which stores normalized RNA expression cou
 ```{r,collapse=T,warning=F, message=FALSE}
 hao <- scGate(data = hao, model = bcell.sct, assay = "SCT",output.col.name = "Bcell.SCT")
 
-DimPlot(hao, group.by = "Bcell.SCT", cols = c(list("Impure" = "gray", "Pure" = "green"))) + theme(aspect.ratio = 1) + ggtitle("scGate Bcells (SCT assay)")
+DimPlot(hao, group.by = "Bcell.SCT", cols = c(list("Impure" = "gray", "Pure" = "green"))) + 
+  theme(aspect.ratio = 1) + ggtitle("scGate Bcells (SCT assay)")
 ```
 
 The surface protein measurements for key B cell markers CD19 and CD20 (stored in the ADT assay) confirm that scGate could isolate pure B cells from trascriptomics data
@@ -210,7 +211,7 @@ a | b
 
 ## Purify Platelets
 
-We start filtering platelets on the SCT assay
+We start by filtering platelets on the SCT assay
 ```{r,collapse =T, warning=F, collapse=TRUE, message=F}
 # model definition
 platelet.sct <- gating_model(name = "platelet.sct", signature = c("ITGA2B"))
