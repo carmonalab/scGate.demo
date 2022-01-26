@@ -1,0 +1,378 @@
+---
+title: "Isolating target cell types from ATAC-seq data using scGate"
+author: "M. Andreatta, A. Berenstein and S. Carmona"
+date: "26/01/2022"
+output:
+  rmdformats::readthedown:
+    self-contained: true
+    highlight: haddock
+    thumbnails: false
+    css: styles.css
+knit: (function(input_file, encoding) {
+  out_dir <- 'docs';
+  rmarkdown::render(input_file, encoding=encoding,
+ output_file=file.path(dirname(input_file), out_dir, 'scGate.ATAC-seq.html'))})
+---
+
+```{r, message=F, warning=F,results=F}
+renv::restore()
+library(ggplot2)
+library(dplyr)
+library(UCell)
+library(scGate)
+library(viridis)
+
+library(Seurat)
+library(Signac)
+library(EnsDb.Hsapiens.v86)
+library(stringr)   
+library(patchwork)
+```
+
+# Introduction
+
+In this vignette we are going to take advantage of scGate tool to isolate different target cell populations from scATAC-seq data. 
+To this end, we considered PBMC data from a healthy donor - granulocytes removed through cell sorting (10k).  This data contains paired RNA-seq and ATAC-seq assays. It is available in 10x site [here](https://support.10xgenomics.com/single-cell-multiome-atac-gex/datasets/1.0.0/pbmc_granulocyte_sorted_10k?).
+Also, sample code for pre-processing analysis in Seurat can be found [here](https://satijalab.org/seurat/articles/weighted_nearest_neighbor_analysis.html)
+
+
+Read input data and create a Seurat object
+```{r,warning=F,collapse =T}
+ddir <- "./data/"
+dir.create(ddir)
+
+# the 10x hdf5 file contains both data types. 
+inputdata.10x <- Read10X_h5(sprintf("%s/pbmc_granulocyte_sorted_10k_filtered_feature_bc_matrix.h5",ddir))
+
+# extract RNA and ATAC data
+rna_counts <- inputdata.10x$`Gene Expression`
+atac_counts <- inputdata.10x$Peaks
+
+# Create Seurat object
+pbmc <- CreateSeuratObject(counts = rna_counts)
+pbmc[["percent.mt"]] <- PercentageFeatureSet(pbmc, pattern = "^MT-")
+
+# Now add in the ATAC-seq data
+# we'll only use peaks in standard chromosomes
+grange.counts <- StringToGRanges(rownames(atac_counts), sep = c(":", "-"))
+grange.use <- seqnames(grange.counts) %in% standardChromosomes(grange.counts)
+atac_counts <- atac_counts[as.vector(grange.use), ]
+annotations <- GetGRangesFromEnsDb(ensdb = EnsDb.Hsapiens.v86)
+
+#formating
+ucsc.levels <- str_replace(string=paste("chr",seqlevels(annotations),sep=""), pattern="chrMT", replacement="chrM")
+seqlevels(annotations) <- ucsc.levels
+
+genome(annotations) <- "hg38"
+seqlevelsStyle(annotations) <- 'UCSC'
+
+# Load fragment file
+frag.file <- sprintf("%s/pbmc_granulocyte_sorted_10k_atac_fragments.tsv.gz",ddir)
+chrom_assay <- CreateChromatinAssay(
+   counts = atac_counts,
+   sep = c(":", "-"),
+ #  genome = 'hg38',
+   fragments = frag.file,
+   min.cells = 10,
+   annotation = annotations
+ )
+pbmc[["ATAC"]] <- chrom_assay
+```
+
+
+We perform basic QC based on the number of detected molecules for each modality as well as mitochondrial percentage.
+```{r,fig.height=3}
+VlnPlot(pbmc, features = c("nCount_ATAC", "nCount_RNA","percent.mt"), ncol = 3,
+  log = TRUE, pt.size = 0) + NoLegend()
+```
+set some reasonable thresholds according to observed data distributions
+```{r,warning=F}
+pbmc <- subset(
+  x = pbmc,
+  subset = nCount_ATAC < 7e4 &
+    nCount_ATAC > 5e3 &
+    nCount_RNA < 25000 &
+    nCount_RNA > 1000 &
+    percent.mt < 20
+)
+```
+
+We next perform pre-processing and dimensional reduction on both assays independently, using standard approaches for RNA and ATAC-seq data.
+
+# RNA analysis
+```{r, warning=F, collapse =T}
+DefaultAssay(pbmc) <- "RNA"
+pbmc <- SCTransform(pbmc, verbose = FALSE) %>% RunPCA() %>% RunUMAP(dims = 1:50, reduction.name = 'umap.rna', reduction.key = 'rnaUMAP_')
+```
+
+# ATAC analysis
+```{r,warning=F,collapse =T,fig.height=4,fig.width=6}
+# We exclude the first dimension as this is typically correlated with sequencing depth
+DefaultAssay(pbmc) <- "ATAC"
+pbmc <- RunTFIDF(pbmc)
+pbmc <- FindTopFeatures(pbmc, min.cutoff = 'q0')
+pbmc <- RunSVD(pbmc)
+
+
+pbmc <- RunUMAP(pbmc, reduction = 'lsi', dims = 2:50, reduction.name = "umap.atac", reduction.key = "atacUMAP_")
+
+DepthCor(pbmc) + ggtitle("Correlation between depth and \n reduced dimension components") +
+(DimPlot(object = pbmc) + NoLegend())
+```
+
+Infer gene activity from ATAC counts
+```{r,warning=F, message=FALSE,collapse =T}
+gene.activities <- GeneActivity(pbmc) # This step takes a few minutes 
+
+# add the gene activity matrix to the Seurat object as a new assay and normalize it
+pbmc[['GeneActivity']] <- CreateAssayObject(counts = gene.activities)
+pbmc <- NormalizeData(object = pbmc,assay = 'GeneActivity',normalization.method = 'LogNormalize',
+                      scale.factor = median(pbmc$nCount_GeneActivity))
+```
+
+
+We can visualize gene activity counts for some classical immune markers. 
+Limphoid, TCells, TCD8+, NKs, Bcells, and Myeloid populations can be easily identified
+```{r fig.height=9,fig.width = 9}
+DefaultAssay(pbmc) <- 'GeneActivity'
+
+feats <- c('LCK','CD3D','CD3E',"CD3G",'CD8A',"GZMB",'MS4A1','TREM1',"SPI1",'LYZ')
+FeaturePlot(object = pbmc,features = feats ,reduction= "umap.atac",pt.size = 0.1,max.cutoff = 'q95',ncol = 3)
+```
+
+```{r fig.height=6,fig.width = 9}
+
+feats <- c("KLRD1","NCR1","NCAM1","CD8A","LCK","GZMB")
+FeaturePlot(object = pbmc,features = feats ,reduction= "umap.atac",pt.size = 0.1,max.cutoff = 'q95',ncol = 3)
+
+
+feats <- c("MAFB","CD300E","LILRA4","IRF7","CD68","SPI1")
+FeaturePlot(object = pbmc,features = feats ,reduction= "umap.atac",pt.size = 0.1,max.cutoff = 'q95',ncol = 3)
+
+
+feats <- c("SPI1","ITGAX","CD36","LYZ","CD14","MSR1","MAFB","CD300E","ITGAM")
+FeaturePlot(object = pbmc,features = feats ,reduction= "umap.atac",pt.size = 0.1,max.cutoff = 'q95',ncol = 3)
+```
+
+Compare to RNA-seq counts
+```{r,fig.height=5,fig.width=6}
+DefaultAssay(pbmc) <- 'SCT'
+#feats <- c('MS4A1', 'KLRD1', 'CD3D', 'LYZ')
+#feats <- c("CD14","FCGR3A","CSF1R","MSR1")
+feats <- c("SPI1","LYZ","MAFB","CD36")
+#feats <- c("ITGAM","CD36","NCAM1","ITGAX")
+
+pll <- FeaturePlot(object = pbmc,features = feats ,reduction= "umap.atac",pt.size = 0.1, combine = F, max.cutoff = 'q95')
+for (i in seq_along(pll)) {
+   pll[[i]] <- pll[[i]] + theme(
+        aspect.ratio=1,
+        panel.grid = element_blank(),
+        axis.title = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank())
+}
+wrap_plots(pll, ncol=2)
+
+# let me switch again to geneActivity as the default assay
+DefaultAssay(pbmc) <- 'GeneActivity'
+
+```
+
+How many genes are "expressed" based on ATAC_seq?
+```{r,fig.height=4,fig.width= 8, collapse=T}
+a <- VlnPlot(pbmc, features=c("nFeature_SCT","nFeature_RNA","nFeature_GeneActivity"), pt.size = 0)
+apply(pbmc@meta.data[,c("nFeature_SCT","nFeature_RNA","nFeature_GeneActivity")], MARGIN = 2, median)
+
+```
+
+As we can realize, there are many more expressed features in ATAC-seq assay than in the scRNA-seq one. 
+So, we need to adjust maxRank value of UCell ranking tool, to include more genes in the ranking (default is 1500)
+```{r}
+maxRank.ATAC <- 7000
+```
+
+
+Can we calculate UCell scores on GeneActivity data? Let me explore some immune cell signatures
+```{r,fig.height= = 6,fig.width=8}
+signatures <- list("Tcell" = c("CD3E","CD3G","CD3D","CD2"),
+                   "Bcell"=c("MS4A1"),
+                   "NK"=c("KLRD1","NKG7","NCR1","FCGR3A","CD3D-","CD3E-","CD8A-","CD4-"),
+                   "Myeloid"=c("SPI1","CD36","LCK-"),
+                   "Monocyte"=c("LYZ","CD14","SPI1","MAFB","MSR1"))
+
+pbmc <- AddModuleScore_UCell(pbmc, features = signatures, assay = "GeneActivity", maxRank = maxRank.ATAC)
+
+FeaturePlot(pbmc, features = c("Tcell_UCell","Bcell_UCell","NK_UCell","Monocyte_UCell"), 
+            reduction= "umap.atac", max.cutoff = 'q95')
+```
+
+You can also check that UCell score ranges from 0 to 1, other case you must to revice you maxRank parameter. 
+```{r,fig.height=4,fig.width=5}
+hist(pbmc$Tcell_UCell, breaks = 50)
+```
+# Purification of cell populations using scGate on GeneActivity assay
+
+
+## Purifiying B Cells from GeneActivity assay
+
+Let me start wit a simple gating model. We can filtering Bcells by considering a single marker, nameley MS4A1 gene
+```{r fig.height=3,collapse=T, message =F}
+# model definition
+model <- scGate::gating_model(name="Bcell.ATAC",signature = c("MS4A1"))
+
+# filter data 
+pbmc.f <- scGate(data =pbmc, model = model, assay = "GeneActivity", output.col.name = "Bcell.ATAC", 
+                 maxRank = maxRank.ATAC)
+```
+
+Visualize gating results
+```{r fig.height=4, fig.width=5,collapse=T}
+# UMAP plot of purified population
+DimPlot(pbmc.f, group.by = "Bcell.ATAC", reduction= "umap.atac",
+             cols = c(list("Impure" = "gray", "Pure" = "green"))) + ggtitle("scGate B cells on ATAC") + theme(aspect.ratio = 1)
+```
+
+One way to confirm that scGate is isolating the right population is by analizying the expression levels of MS4A1 gene in the RNA-seq assay
+```{r fig.height=4,collapse=T, fig.width = 8}
+# Control 
+DefaultAssay(pbmc.f) <- "SCT"
+
+a <- VlnPlot(pbmc.f,features = c("MS4A1"), assay = "SCT",
+             cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0) 
+
+b <- FeaturePlot(object = pbmc.f, features = c('MS4A1'), reduction= "umap.atac",pt.size = 0.1,max.cutoff = 'q95') + 
+  ggtitle("MS4A1 RNA-seq") + theme(aspect.ratio = 1)
+
+a|b
+```
+
+```{r fig.height=3,collapse=T, fig.width = 6, eval =F}
+#DefaultAssay(pbmc.f) <- "GeneActivity"
+#c <- FeaturePlot(object = pbmc.f, features = c('MS4A1'), reduction= "umap.atac",pt.size = 0.1,max.cutoff = 'q95') + 
+#  ggtitle("MS4A1 ATAC") + theme(aspect.ratio = 1)
+
+```
+
+## Purifiying TCells from GeneActivity assay
+
+Now, we aim to filter Tcell population by using a signature composed of CD2 and CD3[edg] gene
+```{r fig.height=3,collapse =T, message =F}
+# model definition
+model <- scGate::gating_model(name="Tcell.ATAC",signature = c("CD3E","CD3D","CD3G","CD2"))
+
+#Filtering process
+pbmc.f <- scGate(data =pbmc, model = model, assay = "GeneActivity", output.col.name = "Tcell.ATAC", 
+                 maxRank = maxRank.ATAC)
+```
+
+visualize results 
+```{r fig.height=4, fig.width=5,collapse=T}
+# UMAP plot 
+DimPlot(pbmc.f, group.by = "Tcell.ATAC", reduction= "umap.atac",
+             cols = c(list("Impure" = "gray", "Pure" = "green"))) + ggtitle("scGate T cells on ATAC") + theme(aspect.ratio = 1)
+```
+
+We can check scGate filtering by exploring CD3 and CD2 RNA-seq expression levels 
+````{r fig.height=4, fig.width=9,collapse=T}
+# CD2 and CD3 expression levels
+a <- VlnPlot(pbmc.f,features = c("CD3E","CD2"), assay = "SCT",
+             cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0)
+
+# Feature plot of 
+DefaultAssay(pbmc.f) <- "SCT"
+b <- FeaturePlot(object = pbmc.f, features = c('CD3E'), reduction= "umap.atac",pt.size = 0.1,max.cutoff = 'q95') + 
+  ggtitle("CD3E RNA-seq") + theme(aspect.ratio = 1)
+
+a | b 
+```
+
+# Purification of Monocytes 
+
+Some cells populations may require more complex gating strategies. Consider the case of gating monocytes from geneActivity assay. Instead of trying to filter this popultaion with a single signature, one can try to mimic a flow cytometry gating process, i.e. by defining a sequential gating strategy. So, we consider a two step model, consisting of a first layer aimed to filter Myeloid cells from the whole population, and a second layer aimed to filter Monocytes from the Myeloid cell population   
+```{r fig.height=3, collapse =T, message=F}
+#model definition 
+#first layer (Myeloid)
+model <- scGate::gating_model(name="Myeloid.ATAC",signature = c("SPI1","CD36","LCK-"))#,
+#second layer (Monocytes)
+model <- scGate::gating_model(model,name="Monocyte.ATAC",signature = c("CD14","MSR1","MAFB"),level = 2)
+
+# FIltering process
+pbmc.f <- scGate(data =pbmc, model = model, assay = "GeneActivity", output.col.name = "Monocyte.ATAC", 
+                 maxRank = maxRank.ATAC)
+```
+
+Visualize results
+scGate allow us to visualize results of sequential models layer by layer. We can visualize filtering results step by step as follow:
+```{r fig.height=4, fig.width=8,collapse=T}
+
+DimPlot(pbmc.f, group.by = "Monocyte.ATAC.level1", reduction= "umap.atac",
+             cols = c(list("Impure" = "gray", "Pure" = "green"))) + ggtitle("Myeloid popultaion on ATAC") + theme(aspect.ratio = 1) +
+
+DimPlot(pbmc.f, group.by = "Monocyte.ATAC", reduction= "umap.atac",
+             cols = c(list("Impure" = "gray", "Pure" = "green"))) + ggtitle("Monocytes on ATAC") + theme(aspect.ratio = 1)
+
+#please, notice that the last level can be referd as Monocyte.ATAC.level.2 as well as Monocyte.ATAC
+```
+
+
+We can check scGate filtering by exploring RNA-seq expression levels. In this case we can consider clasical CD14 and SPI1 genes 
+```{r fig.height=3, fig.width=9,collapse=T}
+a <- VlnPlot(pbmc.f,features = c("SPI1","CD14"), assay = "SCT",
+             cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0,ncol = 2)
+
+DefaultAssay(pbmc.f) <- "SCT"
+b <- FeaturePlot(object = pbmc.f, features = c('SPI1'), reduction= "umap.atac",pt.size = 0.1,max.cutoff = 'q95') + 
+  ggtitle("SPI1 RNA-seq") + theme(aspect.ratio = 1)
+
+a | b
+
+```
+
+
+
+## Filtering NK cells with scGate on GeneActivity assay 
+As in the case of Monocytes, we will take advantage of scGate hierarchical capability. Since some classical NK markers like KLRD1 is also expressed in some myeloid populations, it make sense to build a first layer gating Lympoid cells. Then, ina second level, we can purify NK population from the lymphoid one. Here we also introduce an extra scGate feature, namely, the capability of incorporating positive and negative signatures at differnt hierachical levels. 
+
+```{r fig.height=3, collapse=T, message =F}
+# model definition
+#Layer 1
+model <- scGate::gating_model(name="Lymphocyte.ATAC",signature = c("LCK"), positive = T)  # positive signaure
+model <- scGate::gating_model(model,name="Myeloid.ATAC",signature = c("SPI1"), positive = F)  # negative signature
+
+# Layer 2
+model <- scGate::gating_model(model,name="NK.ATAC",signature = c("KLRD1","NCAM1","NCR1","CD8A-"), level = 2, positive = T)  # Positive signature
+model <- scGate::gating_model(model,name="Tcell.ATAC",signature = c("CD3G","CD3D","CD3E","CD2"), level = 2, positive = F)   # Positive signature
+
+
+# filtering process
+pbmc.f <- scGate(data =pbmc, model = model, assay = "GeneActivity", output.col.name = "NK.ATAC", 
+                 maxRank = maxRank.ATAC)
+```
+
+Visualization
+```{r fig.height=4, fig.width=8,collapse=T}
+# Layer 1 (lymhpoid cells)
+DimPlot(pbmc.f, group.by = "NK.ATAC.level1", reduction= "umap.atac",
+             cols = c(list("Impure" = "gray", "Pure" = "green"))) + ggtitle("scGate Lymphoid on ATAC") + theme(aspect.ratio = 1) + 
+DimPlot(pbmc.f, group.by = "NK.ATAC", reduction= "umap.atac",
+             cols = c(list("Impure" = "gray", "Pure" = "green"))) + ggtitle("scGate Lymphoid on ATAC") + theme(aspect.ratio = 1)
+
+
+```
+
+We can check scGate filtering by exploring RNA-seq expression levels. In this case we can consider clasical KLRD1 and NCam1 genes 
+```{r fig.height=3,fig.width=11}
+b <- VlnPlot(pbmc.f,features = c("KLRD1","NCAM1"), assay = "SCT",
+             cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0) +  theme(aspect.ratio = 1)
+
+DefaultAssay(pbmc.f) <- "SCT"
+pll <- FeaturePlot(object = pbmc.f, features = c('KLRD1',"CD3D"), reduction= "umap.atac",pt.size = 0.1,max.cutoff = 'q95', combine = F)
+pll[[1]] <- pll[[1]] + ggtitle("KLRD1 RNA-seq") + theme(aspect.ratio = 1)
+pll[[2]] <- pll[[2]] + ggtitle("CD3D RNA-seq") + theme(aspect.ratio = 1)
+
+d <- wrap_plots(pll)
+
+b|d
+```
+
+
