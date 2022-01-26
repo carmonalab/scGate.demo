@@ -1,5 +1,5 @@
 ---
-title: "scGate: marker-based purification of cell types from single-cell RNA-seq datasets"
+title: "Isolating target cell types from CITE-seq data using scGate"
 author: "M. Andreatta, A. Berenstein and S. Carmona"
 date: "25/01/2022"
 output:
@@ -14,162 +14,133 @@ knit: (function(input_file, encoding) {
  output_file=file.path(dirname(input_file), out_dir, 'scGate.CITE-seq.html'))})
 ---
 
-This demo illustrates the use of [scGate package](https://github.com/carmonalab/scGate) for purifying cell type populations in CITE-seq data. Taking advantage of Hao.et al 2021 dataset, we show how this tool can be used to filter cell types in diferent single-cell modalities, a.k.a. CITE-seq and RNA-seq.
+# Introduction
+
+The CITE-seq dataset by [Hao.et al. 2021](https://doi.org/10.1016/j.cell.2021.04.048) characterizes human PBMCs with scRNA-seq paired with antibody-derived tags (ADT) for a panel of >200 antibodies. This demo illustrates how the [scGate package](https://github.com/carmonalab/scGate) can be applied to isolate target cell type populations from the different modalities in CITE-seq data.
 
 ```{r, message=F, warning=F,results=F}
-renv::activate()
 renv::restore()
 library(ggplot2)
 library(dplyr)
 library(UCell)
 library(scGate)
-library(Nebulosa)
 library(viridis)
-require(scales)
-#renv::snapshot()
-
-dir.create("./plots/")
+library(patchwork)
 ```
 
 
-## Load Hao et.al paired data (RNA-seq and CITE-see)
-Here, we take advantage of a sub-sampled version consisting of 2K samples. 
+# Load CITE-seq dataset
+
+For simplicity, in this demo we use a reduced version of the dataset by [Hao.et al. 2021](https://doi.org/10.1016/j.cell.2021.04.048), downsampled to 2k cells. The same approach can be applied to the complete dataset.
+
 ```{r,warning=F}
 testing.datasets <- scGate::get_testing_data(version = "hsa.latest")
 hao <- testing.datasets$Satija
 ```
 
-Let me check distribution in both modalities. 
-```{r, collapse =T,fig.height=4,fig.width=8}
-# sanity check. All points have at least 1000 reads
-p1 <- ggplot(data = hao@meta.data,aes(nCount_ADT, nCount_RNA)) + scale_x_log10()  + scale_y_log10() +
- scale_x_log10(breaks = trans_breaks("log10", function(x) 10^x),
-              labels = trans_format("log10", math_format(10^.x))) +
- scale_y_log10(breaks = trans_breaks("log10", function(x) 10^x),
-              labels = trans_format("log10", math_format(10^.x))) +
-geom_density_2d()  +
-theme_bw() 
-
-p2 <- ggplot(data = hao@meta.data,aes(nFeature_ADT, nFeature_RNA)) + scale_x_log10()  + scale_y_log10() +
- scale_x_log10(breaks = trans_breaks("log10", function(x) 10^x),
-              labels = trans_format("log10", math_format(10^.x))) +
- scale_y_log10(breaks = trans_breaks("log10", function(x) 10^x),
-              labels = trans_format("log10", math_format(10^.x))) +
-geom_density_2d()  +
-theme_bw() 
-
-p1 | p2
-```
-
-```{r,echo=FALSE,warning=F, results=F, eval=F}
-#Distribution of ADT signals
-#Distribution of ADT signals
-
-#Does it make sense to rank ADT signals within a cell? 
-#Are the signals in the same scale?
-p1 <- boxplot(t(hao@assays$ADT@data),outline=F)
-#not really but also not terrible
-
-#how are ADT signals distributed within each cell? eg would it make sense to rank values within each cell?
-p2 <- boxplot(hao@assays$ADT@data[,sample(seq_len(ncol(hao@assays$ADT@data)),200)],outline=F)
-#looks like ADT signals are normalized per cell; with a gaussian-like dist; seems OK to rank them in each cell
-#these data are not sparse like RNA; almost no zeros
-```
-
-
-## Let me inspect ADT's UMAP distribution and annotations providedby Hao et al. 
+Let's have a look at the cell type annotations provided by the authors.
 ```{r, warning=F,collapse =T, fig.width=6,fig.height=5}
 DefaultAssay(hao) <- "ADT"
 DimPlot(hao, group.by = "celltype.l1",label = T,repel = T,reduction = "umap") + theme(aspect.ratio=1)
 ```
 
+How are ADT signals in the same scale, how are they distributed within each cell?
+```{r,echo=FALSE,warning=F}
+par(mfrow=c(1,2))
+boxplot(t(hao@assays$ADT@data), outline=F, xaxt='n', main="ADT signal by protein") 
 
-Evaluate UCell scores on ADT for Bcells 
-```{r,collapse=T,warning=F}
-# Since ADT data is not sparse and contains a finite number of markers, we need to pass such information to UCell score via maxRank parameter
-maxrank <- nrow(hao@assays$ADT)/2
-hao.u <- AddModuleScore_UCell(hao, features = list("Bcell" = "CD20"), assay = "ADT",maxRank = maxrank)
-fp <- FeaturePlot(hao.u, features = "Bcell_UCell") + scale_color_viridis(discrete = FALSE, option="D")
-
-#let me check how the UCell score is distributed among samples. 
-hp <- ggplot(hao.u@meta.data,aes(x = Bcell_UCell))  + geom_histogram()
-fp | hp
+boxplot(hao@assays$ADT@data[,sample(seq_len(ncol(hao@assays$ADT@data)),100)],outline=F, xaxt='n', main="ADT signal by cell")
+par(mfrow=c(1,1))
 ```
 
-Now, we can create simple Bcell gating models on both, SCT or ADT assays
+ADT signals appear to be fairly comparable between cells and antibody tags. However, unlike scRNA-seq these data are not sparse (many zeros), so we will have to adapt the parameters of scGate to this different distribution of signals. 
+
+# scGate on CITE-seq data
+
+Because CITE-seq contains two modalities (scRNA-seq and ADT counts), we can apply scGate on one modality and verify gating purity by measuring key markers in the second modality.
+
+## Purify B cells
+
+First, we build a simple gating model for Bcells using the gene MS4A1 (encoding CD20).
 ```{r,warning=F}
-bcell.sct <- gating_model(name = "Bcell.sct", signature = c("MS4A1"))
+bcell.sct <- scGate::gating_model(name = "Bcell.sct", signature = c("MS4A1"))
+```
+
+And we can apply it on the SCT assay (which stores normalized RNA expression counts) of the Seurat object.
+```{r,collapse=T,warning=F}
+hao <- scGate(data = hao, model = bcell.sct, assay = "SCT",output.col.name = "Bcell.SCT")
+DimPlot(hao, group.by = "Bcell.SCT", cols = c(list("Impure" = "gray", "Pure" = "green"))) + theme(aspect.ratio = 1) + ggtitle("scGate Bcells (SCT assay)")
+```
+
+The surface protein measurements for key B cell markers CD19 and CD20 (stored in the ADT assay) confirm that scGate could isolate pure B cells from trascriptomics data.
+```{r fig.height=2}
+VlnPlot(hao,features = c("CD20","CD19"), assay = "ADT",cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0)
+```
+
+We can now perform the complementary experiment: detecting B cells from ADT readouts (and confirming gating purity by RNA-seq expression)
+
+First make a simple gating model based on marker CD20.
+```{r,collapse=T,warning=F}
 cd20.adt <-  gating_model(name = "Bcell.adt", signature = c("CD20"))
 ```
 
+Then apply this scGate model on the ADT assay. Note that, because ADT data are not sparse, and the dimensionality is much lower than scRNA-seq (up to a few hundred tags, compared to tens of thousands of genes in scRNA-seq), we will need to adjust the `maxRank` parameter. This parameter tells [UCell](https://github.com/carmonalab/scGate) how many variables to consider for ranking. For ADT data, the total number of tags divided by two is normally a reasonable choice.
 
-First, let me try to filter data using SCT assay
-```{r,collapse=T,warning=F}
-hao <- scGate(data = hao, model = bcell.sct, assay = "SCT",output.col.name = "Bcell.SCT")
-a1 <- DimPlot(hao, group.by = "Bcell.SCT", cols = c(list("Impure" = "gray", "Pure" = "green"))) + ggtitle("scGate Bcell on SCT")
+```{r}
+DefaultAssay(hao) <- "ADT"
+maxrank <- nrow(hao)
 
-# We can also check some classical markers on ADT data to characterize the filtered population
-a2 <- VlnPlot(hao,features = c("CD20","CD19"), assay = "ADT",cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0)
-a1 + theme(aspect.ratio=1)| a2
-
-#ggsave("plots/hao.ADTviolin.Bcell.bypurity.pdf", plot = a2, height=4, width=4)
-
-```
-
-Now, let me try to filter data using ADT assay (and check results with SCT markers)
-```{r,collapse=T,warning=F}
-# here, we need to adjust max.rank UCell parameter in a value equal or lower than the total number of features in the assay
-maxrank <- nrow(hao@assays$ADT)/2
 hao <- scGate(data = hao, model = cd20.adt, assay = "ADT",output.col.name = "Bcell.ADT",maxRank = maxrank)  
 
-b1 <- DimPlot(hao, group.by = "Bcell.ADT", cols = c(list("Impure" = "gray", "Pure" = "green"))) + ggtitle("scGate Bcell on ADT")
+b1 <- DimPlot(hao, group.by = "Bcell.ADT", cols = c(list("Impure" = "gray", "Pure" = "green"))) + 
+  theme(aspect.ratio = 1) + ggtitle("scGate Bcells (ADT assay)")
+
+#Verify RNA expression of MS4A1 (encoding CD20) in SCT assay
 b2 <- VlnPlot(hao,features = "MS4A1", assay = "SCT",cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0)
-(b1 + theme(aspect.ratio=1))|b2
+b1 + b2
 ```
 
-Plot data
-```{r,fig.height= 9, fig.width= 15,warning=F, collapse=T}
+We can always examine the strength of the signatures in scGate models by plotting the UCell scores returned as part of the output. For example, for the Bcell.sct and Bcell.adt signatures, scores for all cells are available in the metadata slots `Bcell.sct_UCell` and `Bcell.adt_UCell`, respectively.
+
+```{r warning=F, collapse=T}
 DefaultAssay(hao) <- "SCT"
-c1 <- FeaturePlot(hao, features=c("Bcell.sct_UCell"), sort.cell = T) + 
+a <- FeaturePlot(hao, features=c("Bcell.sct_UCell"), sort.cell = T) + 
        scale_color_viridis(discrete = FALSE, option="D", direction = 1) + theme(aspect.ratio=1)
 
 
 DefaultAssay(hao) <- "ADT"
-c2 <- FeaturePlot(hao, features=c("Bcell.adt_UCell"), sort.cell = T) + 
-       scale_color_viridis(discrete = FALSE, option="D", direction = 1) + theme(aspect.ratio=1) #axis.title=element_blank(),
+b <- FeaturePlot(hao, features=c("Bcell.adt_UCell"), sort.cell = T) + 
+       scale_color_viridis(discrete = FALSE, option="D", direction = 1) + theme(aspect.ratio=1)
 
+a | b
 
-lyt <- "ABC
-DEF"
-plt <- wrap_plots(a1,a2,c1,b1,b2,c2,design = lyt)
-plt
-#ggsave(filename = "./plots/scGate.adt.Bcell.pdf",plot = plt,width=15, height=9)
 ```
 
 
-## Let me explore Tcells
-We start with SCT assay.
-Please, notice that we can define models in a hierachical manner, mimicking a flow cytometry gating process. 
-```{r,fig.width= 10,fig.height=4,warning=F, collapse=TRUE}
-#model definition 
-# first level
-t.sct <- gating_model(name = "lymphoid", signature = c("LCK"))  # First, keep only Lymphoid cells
-#second level
-t.sct <- gating_model(model = t.sct, name = "t.sct", signature = c("CD3E","CD3D","ITGA2B-"),level = 2)  #integrin alpha 2b expressed in endothelial cells, platelets, etc. but not T cells
+## Purify T cells
 
-#filtering data
+As described in [another demo](https://carmonalab.github.io/scGate.demo/), scGate allows us defining hierarchical models, mimicking a flow cytometry gating process. 
+```{r warning=F, collapse=TRUE}
+# First level - filter on lymphoid cells
+t.sct <- gating_model(name = "lymphoid", signature = c("LCK"))
+# Second level - filter on T cells markers (integrin alpha 2b expressed in endothelial cells, platelets, etc. but not T cells)
+t.sct <- gating_model(model = t.sct, name = "t.sct", signature = c("CD3E","CD3D","ITGA2B-"),level = 2)
+
+# Run scGate model on SCT assay
 hao <- scGate(data = hao, model = t.sct, assay = "SCT")
 
+a <- DimPlot(hao, cols = c(list(Impure = "gray", Pure = "green"))) + 
+  theme(aspect.ratio = 1) + ggtitle("scGate Tcells (SCT assay)")
 
-c1 <- DimPlot(hao, cols = c(list(Impure = "gray", Pure = "green")))  + ggtitle("Tcells SCT gating")
-c2 <- VlnPlot(hao,features = c(grep("CD3-[1-2]",row.names(hao@assays$ADT),value = T),"CD41"), assay = "ADT",cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0) 
+# and check surface protein markers in ADT assay
+b <- VlnPlot(hao,features = c(grep("CD3-[1-2]",row.names(hao@assays$ADT),value = T),"CD41"), 
+             assay = "ADT",cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0, ncol=2) 
 
-(c1+ theme(aspect.ratio = 1))|c2
-
+a | b
 ```
 
-## Now, let me test T.cell filtering on ADT assay
-```{r,fig.width= 4,fig.height=4,warning=F, collapse=TRUE}
+And conversely, generate a model to filter T cells based on ADT readouts.
+```{r warning=F, collapse=TRUE}
 #model definition
 t.adt <- gating_model(name = "t.adt", signature = c("CD3-1","CD3-2","CD41-"))
 
@@ -178,154 +149,112 @@ maxrank <- nrow(hao@assays$ADT)/2
 hao <- scGate(data = hao, model = t.adt, assay = "ADT",maxRank = maxrank)
 
 # UMAP plot
-DimPlot(hao, cols = c(list(Impure = "gray", Pure = "green")))  + ggtitle("Tcells ADT gating") + theme(aspect.ratio=1)
+DimPlot(hao, cols = c(list(Impure = "gray", Pure = "green")))  + ggtitle("scGate Tcells (ADT assay)") + theme(aspect.ratio=1)
 ```
 
-As can be seen, almost all TCells were lost during the filtering process. 
-When using ADT data, one needs to check if default positive/negative threshold (0.2) are aproppiate.  
-Let me check the UCell score distribution. 
+Almost all cells were filtered out by the method. When using ADT data, one needs to check if default positive/negative threshold (0.2) are appropriate:
 
-```{r,fig.width= 6,fig.height=4,warning=F,collapse =T}
-c00 <- plot_UCell_scores(obj = hao, model = t.adt)
-c00
+```{r warning=F,collapse =T, fig.height=3, fig.width=5}
+plot_UCell_scores(obj = hao, model = t.adt)
 ```
 
-According to UCell score distribution, pos.thr = neg.thr = 0.2 seems to be high. 
-Based in the observed bimodal distribution, let me try using a lower threshold pos.thr = neg.thr = 0.05 
-```{r,fig.width= 15,fig.height=4,warning=F, collapse=TRUE}
+The distribution is bimodal, but the default threshold pos.thr=0.2 is too strict. Run again with pos.thr=0.05.
+```{r warning=F, collapse=TRUE}
 # model definition
 t.adt <- gating_model(name = "t.adt", signature = c("CD3-1","CD3-2","CD41-"))
 # filtering
-hao <- scGate(data = hao, model = t.adt, assay = "ADT",maxRank = maxrank, pos.thr = 0.05, neg.thr = 0.05)
-# retrive Ucell distribution
-c00 <- plot_UCell_scores(obj = hao, model = t.adt)
+hao <- scGate(data = hao, model = t.adt, assay = "ADT", maxRank = maxrank, pos.thr = 0.05)
 
-# UMAP plot
-c3 <- DimPlot(hao, cols = c(list(Impure = "gray", Pure = "green")))  + ggtitle("Tcells ADT gating")
+a <- DimPlot(hao, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1) + ggtitle("scGate Tcells (ADT assay)")
 
 # Control markers on SCT assay
-c4 <- VlnPlot(hao,features = c("CD3E","CD3D","ITGA2B"), assay = "SCT",cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0) 
-c00|(c3+ theme(aspect.ratio=1))|c4
+b <- VlnPlot(hao,features = c("CD3E","CD3D","ITGA2B"), assay = "SCT", ncol=2,
+             cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0) 
+a | b
 ```
 
 
-Plot Tcell gating on both, adt and sct
-```{r,fig.height= 8, fig.width= 16,warning=F, collapse=TRUE}
-DefaultAssay(hao) <- "SCT"
-c5 <- FeaturePlot(hao, features=c("t.sct_UCell"), sort.cell = T) + 
-       scale_color_viridis(discrete = FALSE, option="D", direction = 1) 
+## Purify NK cells
 
-
-DefaultAssay(hao) <- "ADT"
-c6 <- FeaturePlot(hao, features=c("t.adt_UCell"), sort.cell = T) + 
-       scale_color_viridis(discrete = FALSE, option="D", direction = 1)  #axis.title=element_blank(),
-
-
-lyt <- "
-ABBBD
-EFFFG"
-plt <- wrap_plots(c1,c2,c5,c3,c4,c6,design = lyt)
-plt
-
-#ggsave(filename = "./plots/scGate.adt.Tcell.pdf",plot = plt,width=8, height=16)
-```
-
-
-
-## Now, we will deal with NK cells
+Build a model for scRNA-seq
 ```{r}
-# SCT: build model
 nk.sct <- gating_model(name = "NK.sct", signature = c("NCAM1","KLRD1","CD3D-"))
 ```
 
 Filter on SCT data
-```{r,fig.height=3, fig.width = 9,warning=F, collapse=TRUE}
+```{r warning=F, collapse=TRUE}
 hao <- scGate(data = hao, model = nk.sct, assay = "SCT",output.col.name = "NK.sct")
-e1 <- DimPlot(hao, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1) + ggtitle("NK cells SCT gating")
-#aa <- VlnPlot(hao,features = c("CD56-1", "CD56-2","CD3-1","CD3-2"), assay = "ADT",cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0)
-e2 <- VlnPlot(hao,features = c("CD56-1", "CD56-2","CD3-1","CD3-2"), assay = "ADT",cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0,ncol = 4)
+a <- DimPlot(hao, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1) + ggtitle("scGate NKs (SCT assay)")
 
-e3 <- VlnPlot(hao,features = c("CD56-1","CD3-1"), assay = "ADT",cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0)
-ggsave("plots/hao.ADTviolin.NK.bypurity.pdf", plot = e3, height=4, width=4)
+b <- VlnPlot(hao,features = c("CD56-1", "CD56-2","CD3-1","CD3-2"), assay = "ADT",cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0,ncol = 2)
 
-wrap_plots(e1,e2,design = "ABBB")
+a | b
 ```
 
-NK on adt
-```{r,fig.height=3,fig.width=9,warning=F, collapse=TRUE}
+Build and apply NK model for ADT assay
 
+```{r warning=F, collapse=TRUE}
 # ADT: build model
-# since #KLRD1/CD94 is not present in Hao data, we will use CD56 marker instead
+# since KLRD1/CD94 is not available in Hao data, we will use the CD56 marker instead
 nk.adt <- gating_model(name = "NK.adt", signature = c("CD56-1", "CD56-2"))
 nk.adt <- gating_model(model = nk.adt, name = "cd3.adt",signature = c("CD3-1","CD3-2"), negative = T)
 
 hao <- scGate(data = hao, model = nk.adt, assay = "ADT",maxRank = 50, output.col.name = "NK.adt")
-e3 <- DimPlot(hao, cols = c(list(Impure = "gray", Pure = "green")),group.by = "NK.adt") + theme(aspect.ratio = 1) + ggtitle("NK cells ADT gating")
-e4 <- VlnPlot(hao,features = c("NCAM1","KLRD1","CD3E","CD3D"), assay = "SCT",cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0,ncol = 4)
+a <- DimPlot(hao, cols = c(list(Impure = "gray", Pure = "green")),group.by = "NK.adt") + theme(aspect.ratio = 1) + ggtitle("scGate NKs (ADT assay)")
+b <- VlnPlot(hao,features = c("NCAM1","KLRD1","CD3E","CD3D"), assay = "SCT",
+             cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0,ncol = 2)
 
-wrap_plots(e3,e4,design = "ABBB")
-
+a | b
 ```
 
-Plot data
-```{r,fig.height= 8, fig.width= 18,warning=F, collapse=TRUE}
-DefaultAssay(hao) <- "SCT"
-e5 <- FeaturePlot(hao, features=c("NK.sct_UCell"), sort.cell = T) + 
-       scale_color_viridis(discrete = FALSE, option="D", direction = 1) 
+## Purify Platelets
 
-
-DefaultAssay(hao) <- "ADT"
-e6 <- FeaturePlot(hao, features=c("NK.adt_UCell"), sort.cell = T) + 
-       scale_color_viridis(discrete = FALSE, option="D", direction = 1)  #axis.title=element_blank(),
-
-
-lyt <- "
-ABBBBD
-EFFFFG"
-plt <- wrap_plots(e1,e2,e5,e3,e4,e6,design = lyt)
-plt
-#ggsave(filename = "./plots/scGate.adt.NKcell.pdf",plot = plt,width=8, height=12)
-```
-
-
-## Platelets
 We start filtering platelets on the SCT assay
-```{r,collapse =T, warning=F, collapse=TRUE,fig.height=4,fig.width=8}
+```{r,collapse =T, warning=F, collapse=TRUE}
 # model definition
 platelet.sct <- gating_model(name = "platelet.sct", signature = c("ITGA2B"))
 #filtering
 hao <- scGate(data = hao, model = platelet.sct, assay = "SCT",output.col.name = "platelet.sct")
 # UMAP plot
-d1 <- DimPlot(hao, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1)  + ggtitle("scGate Platelets on SCT")
+a <- DimPlot(hao, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1)  + ggtitle("scGate Platelets (SCT assay)")
 # Control markers in ADT assay
-d2 <- VlnPlot(hao,features = c("CD41"), assay = "ADT",cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0) + theme(aspect.ratio = 1)
-(d1+ theme(aspect.ratio=1))|(d2+ theme(aspect.ratio=1))
+b <- VlnPlot(hao,features = c("CD41"), assay = "ADT",cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0) + theme(aspect.ratio = 1)
+
+(a + theme(aspect.ratio=1)) | (b + theme(aspect.ratio=1))
 ```
 
+Finally, we try to detect Platelets using ADT counts.
 
-Now, let me get Platelets in the ADT assay
-Since CD41 could be expressed in monocites and dendritic cells, we need to add a negative signature. 
-These positive and negative signatures could present different UCell distributions when dealing with ADT data; so we can take advantage here of the flexibility of scGate to fix different thresholds to positive and negative UCell scores
+Since CD41 could be expressed in monocytes and dendritic cells, we need to add a negative signature. 
+Positive and negative signatures could present different UCell distributions when dealing with ADT data; again we need to adjust the thresholds for positive and negative UCell scores (the distribution plots can help you set a threshold).
 
-```{r,warning=F, collapse=TRUE,fig.height=7}
+```{r,warning=F, collapse=TRUE, fig.height=3, fig.width=5}
 platelet.adt <- gating_model(name = "platelet", signature = c("CD41"))
 platelet.adt <- gating_model(model = platelet.adt,name = "MonoDC", signature = c("CD14","CD11c","CD123"),negative = T)
 
 maxrank <- 40
 hao <- scGate(data = hao, model = platelet.adt, assay = "ADT",maxRank = maxrank,pos.thr = 0.8,neg.thr = 0.05)
-d0 <- plot_UCell_scores(obj = hao, model = platelet.adt) + theme(aspect.ratio=1)
-d0
-
-d3 <- DimPlot(hao, cols = c(list(Impure = "gray", Pure = "green")))  + ggtitle("scGate Platelets on SCT") +theme(aspect.ratio=1)
-d4 <- VlnPlot(hao,features = c("ITGA2B"), assay = "ADT",cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0) +theme(aspect.ratio=1)
-lyt = "
-AA
-BC
-"
-wrap_plots(d0,d3,d4,design = lyt)
-
-
+plot_UCell_scores(obj = hao, model = platelet.adt) + theme(aspect.ratio=1)
 ```
 
+```{r}
+a <- DimPlot(hao, cols = c(list(Impure = "gray", Pure = "green")))  + ggtitle("scGate Platelets (ADT assay)") + theme(aspect.ratio=1)
+b <- VlnPlot(hao,features = c("ITGA2B"), assay = "SCT",cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0) +theme(aspect.ratio=1)
+
+a | b
+```
+
+# Further reading
+
+The scGate package and installation instructions are available at: [scGate package](https://github.com/carmonalab/scGate)
+
+The code for this demo (and additional demos) can be found on [GitHub](https://github.com/carmonalab/scGate.demo)
+
+
+# References
+
+* Hao, Y., Hao, S., Andersen-Nissen, E., Mauck III, W. M., Zheng, S., Butler, A., ... & Satija, R. (2021). *Integrated analysis of multimodal single-cell data*. Cell
+
+* Andreatta, M., Carmona, S. J. (2021) *UCell: Robust and scalable single-cell gene signature scoring* Computational and Structural Biotechnology Journal
 
 
