@@ -38,7 +38,7 @@ testing.datasets <- scGate::get_testing_data(version = "hsa.latest")
 hao <- testing.datasets$Satija
 ```
 
-Let's have a look at the cell type annotations provided by the authors.
+Let's have a look at the cell type annotations provided by the authors
 ```{r, warning=F,collapse =T, fig.width=6,fig.height=5}
 DefaultAssay(hao) <- "ADT"
 DimPlot(hao, group.by = "celltype.l1",label = T,repel = T,reduction = "umap") + theme(aspect.ratio=1)
@@ -61,32 +61,33 @@ Because CITE-seq contains two modalities (scRNA-seq and ADT counts), we can appl
 
 ## Purify B cells
 
-First, we build a simple gating model for Bcells using the gene MS4A1 (encoding CD20).
+First, we build a simple gating model for Bcells using the gene MS4A1 (encoding CD20)
 ```{r,warning=F}
 bcell.sct <- scGate::gating_model(name = "Bcell.sct", signature = c("MS4A1"))
 ```
 
-And we can apply it on the SCT assay (which stores normalized RNA expression counts) of the Seurat object.
-```{r,collapse=T,warning=F}
+And we can apply it on the SCT assay (which stores normalized RNA expression counts) of the Seurat object
+```{r,collapse=T,warning=F, message=FALSE}
 hao <- scGate(data = hao, model = bcell.sct, assay = "SCT",output.col.name = "Bcell.SCT")
+
 DimPlot(hao, group.by = "Bcell.SCT", cols = c(list("Impure" = "gray", "Pure" = "green"))) + theme(aspect.ratio = 1) + ggtitle("scGate Bcells (SCT assay)")
 ```
 
-The surface protein measurements for key B cell markers CD19 and CD20 (stored in the ADT assay) confirm that scGate could isolate pure B cells from trascriptomics data.
-```{r fig.height=2}
+The surface protein measurements for key B cell markers CD19 and CD20 (stored in the ADT assay) confirm that scGate could isolate pure B cells from trascriptomics data
+```{r fig.height=4, fig.width=6}
 VlnPlot(hao,features = c("CD20","CD19"), assay = "ADT",cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0)
 ```
 
 We can now perform the complementary experiment: detecting B cells from ADT readouts (and confirming gating purity by RNA-seq expression)
 
-First make a simple gating model based on marker CD20.
+Set up a simple gating model based on marker CD20
 ```{r,collapse=T,warning=F}
 cd20.adt <-  gating_model(name = "Bcell.adt", signature = c("CD20"))
 ```
 
 Then apply this scGate model on the ADT assay. Note that, because ADT data are not sparse, and the dimensionality is much lower than scRNA-seq (up to a few hundred tags, compared to tens of thousands of genes in scRNA-seq), we will need to adjust the `maxRank` parameter. This parameter tells [UCell](https://github.com/carmonalab/scGate) how many variables to consider for ranking. For ADT data, the total number of tags divided by two is normally a reasonable choice.
 
-```{r}
+```{r message=F}
 DefaultAssay(hao) <- "ADT"
 maxrank <- nrow(hao)
 
@@ -102,15 +103,15 @@ b1 + b2
 
 We can always examine the strength of the signatures in scGate models by plotting the UCell scores returned as part of the output. For example, for the Bcell.sct and Bcell.adt signatures, scores for all cells are available in the metadata slots `Bcell.sct_UCell` and `Bcell.adt_UCell`, respectively.
 
-```{r warning=F, collapse=T}
+```{r warning=F, message=F, collapse=T}
 DefaultAssay(hao) <- "SCT"
-a <- FeaturePlot(hao, features=c("Bcell.sct_UCell"), sort.cell = T) + 
-       scale_color_viridis(discrete = FALSE, option="D", direction = 1) + theme(aspect.ratio=1)
+a <- FeaturePlot(hao, features=c("Bcell.sct_UCell"), order = T) + 
+       scale_color_viridis(option="D") + theme(aspect.ratio=1)
 
 
 DefaultAssay(hao) <- "ADT"
 b <- FeaturePlot(hao, features=c("Bcell.adt_UCell"), sort.cell = T) + 
-       scale_color_viridis(discrete = FALSE, option="D", direction = 1) + theme(aspect.ratio=1)
+       scale_color_viridis(option="D") + theme(aspect.ratio=1)
 
 a | b
 
@@ -120,7 +121,7 @@ a | b
 ## Purify T cells
 
 As described in [another demo](https://carmonalab.github.io/scGate.demo/), scGate allows us defining hierarchical models, mimicking a flow cytometry gating process. 
-```{r warning=F, collapse=TRUE}
+```{r warning=F, collapse=TRUE, message=F}
 # First level - filter on lymphoid cells
 t.sct <- gating_model(name = "lymphoid", signature = c("LCK"))
 # Second level - filter on T cells markers (integrin alpha 2b expressed in endothelial cells, platelets, etc. but not T cells)
@@ -140,7 +141,7 @@ a | b
 ```
 
 And conversely, generate a model to filter T cells based on ADT readouts.
-```{r warning=F, collapse=TRUE}
+```{r warning=F, collapse=TRUE, message=F}
 #model definition
 t.adt <- gating_model(name = "t.adt", signature = c("CD3-1","CD3-2","CD41-"))
 
@@ -159,7 +160,7 @@ plot_UCell_scores(obj = hao, model = t.adt)
 ```
 
 The distribution is bimodal, but the default threshold pos.thr=0.2 is too strict. Run again with pos.thr=0.05.
-```{r warning=F, collapse=TRUE}
+```{r warning=F, collapse=TRUE, message=F}
 # model definition
 t.adt <- gating_model(name = "t.adt", signature = c("CD3-1","CD3-2","CD41-"))
 # filtering
@@ -182,7 +183,7 @@ nk.sct <- gating_model(name = "NK.sct", signature = c("NCAM1","KLRD1","CD3D-"))
 ```
 
 Filter on SCT data
-```{r warning=F, collapse=TRUE}
+```{r warning=F, collapse=TRUE, message=F}
 hao <- scGate(data = hao, model = nk.sct, assay = "SCT",output.col.name = "NK.sct")
 a <- DimPlot(hao, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1) + ggtitle("scGate NKs (SCT assay)")
 
@@ -193,7 +194,7 @@ a | b
 
 Build and apply NK model for ADT assay
 
-```{r warning=F, collapse=TRUE}
+```{r warning=F, collapse=TRUE, message=F}
 # ADT: build model
 # since KLRD1/CD94 is not available in Hao data, we will use the CD56 marker instead
 nk.adt <- gating_model(name = "NK.adt", signature = c("CD56-1", "CD56-2"))
@@ -210,7 +211,7 @@ a | b
 ## Purify Platelets
 
 We start filtering platelets on the SCT assay
-```{r,collapse =T, warning=F, collapse=TRUE}
+```{r,collapse =T, warning=F, collapse=TRUE, message=F}
 # model definition
 platelet.sct <- gating_model(name = "platelet.sct", signature = c("ITGA2B"))
 #filtering
@@ -228,7 +229,7 @@ Finally, we try to detect Platelets using ADT counts.
 Since CD41 could be expressed in monocytes and dendritic cells, we need to add a negative signature. 
 Positive and negative signatures could present different UCell distributions when dealing with ADT data; again we need to adjust the thresholds for positive and negative UCell scores (the distribution plots can help you set a threshold).
 
-```{r,warning=F, collapse=TRUE, fig.height=3, fig.width=5}
+```{r,warning=F, collapse=TRUE, message=F, fig.height=3, fig.width=5}
 platelet.adt <- gating_model(name = "platelet", signature = c("CD41"))
 platelet.adt <- gating_model(model = platelet.adt,name = "MonoDC", signature = c("CD14","CD11c","CD123"),negative = T)
 
