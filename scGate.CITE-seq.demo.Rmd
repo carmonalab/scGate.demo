@@ -252,9 +252,7 @@ The scGate package and installation instructions are available at: [scGate packa
 
 The code for this demo (and additional demos) can be found on [GitHub](https://github.com/carmonalab/scGate.demo)
 
-
 # References
-
 * Hao, Y., Hao, S., Andersen-Nissen, E., Mauck III, W. M., Zheng, S., Butler, A., ... & Satija, R. (2021). *Integrated analysis of multimodal single-cell data*. Cell
 
 * Andreatta, M., Carmona, S. J. (2021) *UCell: Robust and scalable single-cell gene signature scoring* Computational and Structural Biotechnology Journal

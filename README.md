@@ -14,7 +14,7 @@ We will be posting here several demos for scGate usage in different scenarios:
 
 1. A demo of the **basic functionalities** of scGate on scRNA-seq data - [scGate basics](https://carmonalab.github.io/scGate.demo/scGate.basic.usage.html) 
 
-2. Purifying cells on multi-modal **scATAC-seq + scRNA-seq data** - [scGate ATAC+RNA](https://COMING_SOON) 
+2. Purifying cells on multi-modal **scATAC-seq + scRNA-seq data** - [scGate ATAC+RNA](https://carmonalab.github.io/scGate.demo/scGate.ATAC-seq.html) 
 
 3. Purifying cells on **CITE-seq data** - [scGate CITE-seq](https://carmonalab.github.io/scGate.demo/scGate.CITE-seq.html) 
 
