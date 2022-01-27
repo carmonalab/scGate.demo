@@ -37,7 +37,7 @@ Also, sample code for pre-processing analysis in Seurat can be found [here](http
 
 
 Read input data and create a Seurat object
-```{r,warning=F,collapse =T}
+```{r,warning=F,collapse =T,message =F}
 ddir <- "./data/"
 dir.create(ddir)
 
@@ -81,7 +81,7 @@ pbmc[["ATAC"]] <- chrom_assay
 
 
 We perform basic QC based on the number of detected molecules for each modality as well as mitochondrial percentage.
-```{r,fig.height=3}
+```{r,fig.height=4, fig.width=9}
 VlnPlot(pbmc, features = c("nCount_ATAC", "nCount_RNA","percent.mt"), ncol = 3,
   log = TRUE, pt.size = 0) + NoLegend()
 ```
@@ -100,7 +100,7 @@ pbmc <- subset(
 We next perform pre-processing and dimensional reduction on both assays independently, using standard approaches for RNA and ATAC-seq data.
 
 # RNA analysis
-```{r, warning=F, collapse =T}
+```{r, warning=F, collapse =T,message =F}
 DefaultAssay(pbmc) <- "RNA"
 pbmc <- SCTransform(pbmc, verbose = FALSE) %>% RunPCA() %>% RunUMAP(dims = 1:50, reduction.name = 'umap.rna', reduction.key = 'rnaUMAP_')
 ```
@@ -121,7 +121,7 @@ DepthCor(pbmc) + ggtitle("Correlation between depth and \n reduced dimension com
 ```
 
 Infer gene activity from ATAC counts
-```{r,warning=F, message=FALSE,collapse =T}
+```{r,warning=F, message=FALSE, collapse =T}
 gene.activities <- GeneActivity(pbmc) # This step takes a few minutes 
 
 # add the gene activity matrix to the Seurat object as a new assay and normalize it
@@ -155,7 +155,7 @@ FeaturePlot(object = pbmc,features = feats ,reduction= "umap.atac",pt.size = 0.1
 ```
 
 Compare to RNA-seq counts
-```{r,fig.height=5,fig.width=6}
+```{r,fig.height=5,fig.width=6,message=F, collapse=T}
 DefaultAssay(pbmc) <- 'SCT'
 #feats <- c('MS4A1', 'KLRD1', 'CD3D', 'LYZ')
 #feats <- c("CD14","FCGR3A","CSF1R","MSR1")
@@ -193,7 +193,7 @@ maxRank.ATAC <- 7000
 
 
 Can we calculate UCell scores on GeneActivity data? Let me explore some immune cell signatures
-```{r,fig.height= = 6,fig.width=8}
+```{r,fig.height=6,fig.width=8,collapse=T}
 signatures <- list("Tcell" = c("CD3E","CD3G","CD3D","CD2"),
                    "Bcell"=c("MS4A1"),
                    "NK"=c("KLRD1","NKG7","NCR1","FCGR3A","CD3D-","CD3E-","CD8A-","CD4-"),
@@ -246,12 +246,6 @@ b <- FeaturePlot(object = pbmc.f, features = c('MS4A1'), reduction= "umap.atac",
 a|b
 ```
 
-```{r fig.height=3,collapse=T, fig.width = 6, eval =F}
-#DefaultAssay(pbmc.f) <- "GeneActivity"
-#c <- FeaturePlot(object = pbmc.f, features = c('MS4A1'), reduction= "umap.atac",pt.size = 0.1,max.cutoff = 'q95') + 
-#  ggtitle("MS4A1 ATAC") + theme(aspect.ratio = 1)
-
-```
 
 ## Purifiying TCells from GeneActivity assay
 
@@ -273,7 +267,7 @@ DimPlot(pbmc.f, group.by = "Tcell.ATAC", reduction= "umap.atac",
 ```
 
 We can check scGate filtering by exploring CD3 and CD2 RNA-seq expression levels 
-````{r fig.height=4, fig.width=9,collapse=T}
+```{r fig.height=4,collapse=T, fig.width = 9}
 # CD2 and CD3 expression levels
 a <- VlnPlot(pbmc.f,features = c("CD3E","CD2"), assay = "SCT",
              cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0)
