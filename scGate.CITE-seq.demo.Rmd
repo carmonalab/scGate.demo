@@ -90,7 +90,7 @@ Then apply this scGate model on the ADT assay. Note that, because ADT data are n
 
 ```{r message=F}
 DefaultAssay(hao) <- "ADT"
-maxrank <- nrow(hao)
+maxrank <- nrow(hao@assays$ADT)/2
 
 hao <- scGate(data = hao, model = cd20.adt, assay = "ADT",output.col.name = "Bcell.ADT",maxRank = maxrank)  
 
@@ -147,7 +147,6 @@ And conversely, generate a model to filter T cells based on ADT readouts.
 t.adt <- gating_model(name = "t.adt", signature = c("CD3-1","CD3-2","CD41-"))
 
 # filtering 
-maxrank <- nrow(hao@assays$ADT)/2
 hao <- scGate(data = hao, model = t.adt, assay = "ADT",maxRank = maxrank)
 
 # UMAP plot
@@ -198,12 +197,14 @@ Build and apply NK model for ADT assay
 ```{r warning=F, collapse=TRUE, message=F}
 # ADT: build model
 # since KLRD1/CD94 is not available in Hao data, we will use the CD56 marker instead
-nk.adt <- gating_model(name = "NK.adt", signature = c("CD56-1", "CD56-2"))
-nk.adt <- gating_model(model = nk.adt, name = "cd3.adt",signature = c("CD3-1","CD3-2"), negative = T)
 
-hao <- scGate(data = hao, model = nk.adt, assay = "ADT",maxRank = 50, output.col.name = "NK.adt")
+nk.adt <- gating_model(name = "NK.adt", signature = c("CD56-1", "CD56-2"))
+nk.adt <- gating_model(model = nk.adt, name = "tcell.adt",signature = c("CD3-1","CD3-2"), negative = T)
+plot_UCell_scores(obj = hao, model = nk.adt)
+
+hao <- scGate(data = hao, model = nk.adt, assay = "ADT",maxRank = maxrank, pos.thr = 0.4, neg.thr = 0.6, output.col.name = "NK.adt")
 a <- DimPlot(hao, cols = c(list(Impure = "gray", Pure = "green")),group.by = "NK.adt") + theme(aspect.ratio = 1) + ggtitle("scGate NKs (ADT assay)")
-b <- VlnPlot(hao,features = c("NCAM1","KLRD1","CD3E","CD3D"), assay = "SCT",
+b <- VlnPlot(hao,features = c("NCAM1","KLRD1","CD3D","CD3G"), assay = "SCT",
              cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0,ncol = 2)
 
 a | b
@@ -232,10 +233,9 @@ Positive and negative signatures could present different UCell distributions whe
 
 ```{r,warning=F, collapse=TRUE, message=F, fig.height=3, fig.width=5}
 platelet.adt <- gating_model(name = "platelet", signature = c("CD41"))
-platelet.adt <- gating_model(model = platelet.adt,name = "MonoDC", signature = c("CD14","CD11c","CD123"),negative = T)
-
-maxrank <- 40
-hao <- scGate(data = hao, model = platelet.adt, assay = "ADT",maxRank = maxrank,pos.thr = 0.8,neg.thr = 0.05)
+platelet.adt <- gating_model(model = platelet.adt,name = "myeloid", signature = c("CLEC12A","HLA-DR"),negative = T)
+platelet.adt <- gating_model(model = platelet.adt,name = "monocyte", signature = c("CD14","CD11c","CD11b-1","CD11b-2"),negative = T)
+hao <- scGate(data = hao, model = platelet.adt, assay = "ADT",maxRank = maxrank,pos.thr = 0.95,neg.thr = 0.6)
 plot_UCell_scores(obj = hao, model = platelet.adt) + theme(aspect.ratio=1)
 ```
 
