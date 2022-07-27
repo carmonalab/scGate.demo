@@ -16,7 +16,7 @@ knit: (function(input_file, encoding) {
 
 This demo illustrates the main functionalities of the [scGate package](https://github.com/carmonalab/scGate) for purifying cell type populations of interest from heterogeneous single-cell cell datasets. We start from basic, single-gene filters and move gradually to more complex hierarchical models composed of multi-gene signatures. We show these examples on public data, but you should be able to adapt them to your own single-cell datasets.
 
-## Setting up the environment
+# Setting up the environment
 
 ```{r, message=F, warning=F,results=F}
 library(renv)
@@ -27,7 +27,11 @@ library(ggplot2)
 library(dplyr)
 library(patchwork)
 library(viridis)
-remotes::install_github("carmonalab/scGate",ref = "v1.0.0")
+library(Seurat)
+
+#Install scGate
+remotes::install_github("carmonalab/scGate")
+
 library(scGate)
 ```
 
@@ -54,7 +58,7 @@ opts_knit$set(width=75)
 ```
 
 
-## Loading demo datasets
+# Loading demo datasets
 
 This helper function retrieves some toy datasets with cell type annotations, useful to test our models:
 ```{r}
@@ -68,7 +72,7 @@ DimPlot(obj, label = T, repel = T, group.by = "celltype.l1") + theme(legend.posi
 #ggsave("plots/umap.Hao.celltype.pdf",width = 4, height = 4)
 ```
 
-## Creating a simple gating model
+# Creating a simple gating model
 
 Now let's setup a simple scGate gating model to purify a population of interest - here **B cells**.
 
@@ -81,7 +85,7 @@ my_scGate_model
 
 Run scGate to purify B cells with the simple single-gene model 
 ```{r, collapse=T}
-obj <- scGate(data = obj, model = my_scGate_model, assay = DefaultAssay(obj))
+obj <- scGate(data = obj, model = my_scGate_model, verbose=T)
 DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1)
 #ggsave("plots/umap.Hao.Bcell.pdf",width = 4, height = 4)
 ```
@@ -98,8 +102,8 @@ Another example: we can isolate **plasmacytoid dendritic cells (pDCs)**, defined
 my_scGate_model <- gating_model(name = "pDC", signature = c("LILRA4"))  # add one positive signature
 my_scGate_model
 
-# run the model
-obj <- scGate(data = obj, model = my_scGate_model, assay = DefaultAssay(obj))
+# Run the model
+obj <- scGate(data = obj, model = my_scGate_model)
 DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1)
 ```
 
@@ -108,7 +112,7 @@ scGate::performance.metrics(obj$cell_type=="pDC",obj$is.pure=="Pure")
 ```
 
 
-## Gating models with positive and negative markers
+# Gating models with positive and negative markers
 
 **Natural killer cells (NKs)** are characterized by the marker KLRD1. However, KLRD1 can also be expressed by some T cell subsets. To improve sensitivity to isolate NKs, we can include in our gating strategy "negative" T cell markers such as CD3D.
 
@@ -127,7 +131,7 @@ scGate::performance.metrics(grepl("^NK",obj$cell_type),obj$is.pure=="Pure")
 ```
 
 
-## Hierarchical gating models
+# Hierarchical gating models
 
 In the examples above, we have been using a single-cell dataset derived from blood (PBMC). When working with more complex tissues, such as tumors, we might need to apply multiple levels of gating to isolate the population of interest. scGate allows to purify by steps, using a hierarchical gating model - for example, first purifying immune cells, and among the immune cells the cell type of interest.
 
@@ -143,7 +147,7 @@ We can try to purify first all immune cells, using pan-immune cell marker CD45 (
 
 ```{r}
 my_scGate_model <- gating_model(name = "immune", signature = c("PTPRC")) 
-obj <- scGate(data = obj, model = my_scGate_model, assay = DefaultAssay(obj))
+obj <- scGate(data = obj, model = my_scGate_model, verbose=T)
 DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1)
 #ggsave("plots/umap.jerby.immune.pdf",width = 4, height = 4)
 ```
@@ -161,7 +165,8 @@ Hierarchical gating models can be specified in scGate using parameter "level",  
 ```{r}
 my_scGate_model <- gating_model(name = "immune", signature = c("PTPRC"), level = 1)  # initialize model with one positive signature
 my_scGate_model <- gating_model(model = my_scGate_model, name = "macrophage", signature = c("CD68","FCGR1A"), level = 2)  # add positive signature at second step
-obj <- scGate(data = obj, model = my_scGate_model, assay = DefaultAssay(obj))
+
+obj <- scGate(data = obj, model = my_scGate_model, save.levels = T)
 DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1)
 #ggsave("plots/umap.jerby.macro.pdf",width = 4, height = 4)
 ```
@@ -187,7 +192,7 @@ The first plot shows the purification step for CD45+ cells, the second plot the 
 wrap_plots(plot_levels(obj))
 ```
 
-## Editing models
+# Editing models
 scGate models of arbitrary complexity can be easily constructed to achieve high purification performance.
 These gating models can be written using the gating_model() function, and manually edited using the `fix()` function.
 
@@ -199,7 +204,7 @@ my_scGate_model_edited <- scGate::load_scGate_model("test.tsv") # tabulated-text
 ```
 
 
-## Fast evaluation of model performance
+# Fast evaluation of model performance
 
 We provide a built-in function `test_my_model` to automatically evaluate the performance of a gating model using 3 pre-annotated testing datasets:
 
@@ -221,7 +226,7 @@ panBcell.performance$performance
 ```
 Predictive performance is now very high for the three sample datasets.
 
-## Using pre-defined gating models
+# Using pre-defined gating models
 
 We also provide some pre-defined gating models, these can be retrieved with the `get_scGateDB()` function:
 
@@ -234,12 +239,13 @@ names(models.DB$mouse$generic)
 ```
 
 
-## Visualizing gating models
+# Visualizing gating models
 
 To visualize complex models in tree-like structures, we provide the `plot_tree()` function.
 
 The following is a model to purify **plasma (B) cells** with high accuracy:
 ```{r message=F,results=F}
+library(ggparty)
 my_scGate_model <- models.DB$human$generic$Plasma_cell
 plt.tree <- scGate::plot_tree(my_scGate_model)
 plt.tree
@@ -249,14 +255,14 @@ At each level in the tree, [UCell](https://github.com/carmonalab/UCell) scores a
 
 We can run the Plasma cell model on the whole-tumor dataset by Zilionis et al. (https://doi.org/10.1016/j.immuni.2019.03.009)
 
-```{r}
-obj <- testing.datasets[["Zilionis"]]
-DimPlot(obj, label = T, repel = T, group.by = "cell_type") + theme(legend.position = "none", aspect.ratio = 1) 
+```{r,fig.height=5,fig.width=6}
+DimPlot(obj, group.by = "cell_type",label = T, repel =T,label.size = 3) + 
+    theme(aspect.ratio = 1) + ggtitle("Original manual annot") + NoLegend() 
 ```
 
-Run scGate
+Run scGate with `save.levels=TRUE` to output per-level results
 ```{r, collapse=T}
-obj <- scGate(obj, model = my_scGate_model)
+obj <- scGate(obj, model = my_scGate_model, save.levels = TRUE)
 DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1) 
 ```
 
@@ -266,23 +272,54 @@ plots <- scGate::plot_levels(obj)
 wrap_plots(plots, ncol = 2)
 ```
 
-```{r,fig.height=5,fig.width=6}
-DimPlot(obj, group.by = "cell_type",label = T, repel =T,label.size = 3) + ggtitle("Author's manual annot") + NoLegend() 
-```
-
 Evaluate performance of filtering compared to original annotation
 ```{r,collapse=T}
 scGate::performance.metrics(actual = obj$Plasma_cell, pred = obj$is.pure== "Pure")
 ```
 
+# scGate as a multi-class classifier
 
-## Further reading
+scGate can also be used a cell type classifier, to annotate multiple cell types in a dataset. Simply provide a list of models (one for each cell type of interest) to scGate and these will be jointly evaluated.
+
+For instance, we can use a list of models from the default scGate DB:
+```{r}
+models.DB <- scGate::get_scGateDB()
+models.hs <- models.DB$human$generic
+
+models.list <- models.hs[c("Bcell","CD4T","CD8T","MoMacDC","Plasma_cell","NK")]
+```
+
+Then we can run scGate with this list of models:
+```{r}
+obj <- testing.datasets[["Zilionis"]]
+
+obj <- scGate(obj, model=models.list)
+```
+
+Cells that are unequivocally assigned to only one cell type will be annotated to that cell type; cells that pass the gate of more than one model will be annotated as "Multi"; cells that cannot be gated by any model will be labeled as *NA*.
+
+```{r}
+table(obj$scGate_multi, useNA="ifany")
+```
+
+```{r,fig.height=5,fig.width=11}
+multi <- DimPlot(obj, group.by="scGate_multi") + theme(aspect.ratio = 1)
+
+orig <- DimPlot(obj, group.by = "cell_type",label = T, repel =T, label.size = 2) + 
+  theme(aspect.ratio = 1) + ggtitle("Original manual annot") + NoLegend() 
+
+orig | multi
+```
+
+We note that cell types for which a model was available were consistently annotated. In this example we did not provide models for e.g. Neutrophils and Mast cells, so these cells were left annotated. We leave it as an exercise to design models for these cell types based on markers from literature, and to increase the coverage of cells that can be confidently annotated.
+
+# Further reading
 
 The scGate package and installation instructions are available at: [scGate package](https://github.com/carmonalab/scGate)
 
 The code for this demo can be found on [GitHub](https://github.com/carmonalab/scGate.demo)
 
-## References
+# References
 
 * Hao, Y., Hao, S., Andersen-Nissen, E., Mauck III, W. M., Zheng, S., Butler, A., ... & Satija, R. (2021). *Integrated analysis of multimodal single-cell data*. Cell.
 

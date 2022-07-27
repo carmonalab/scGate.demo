@@ -280,7 +280,7 @@ model <- scGate::gating_model(model,name="Monocyte.ATAC",signature = c("CD14","M
 
 #apply scGate
 pbmc <- scGate(data =pbmc, model = model, assay = "GeneActivity", output.col.name = "Monocyte.ATAC", 
-                 maxRank = maxRank.ATAC)
+                 maxRank = maxRank.ATAC, save.levels = TRUE)
 ```
 
 We can visualize gating results for each layer of the model
@@ -324,7 +324,7 @@ model <- scGate::gating_model(model,name="NK.ATAC",signature = c("KLRD1","NCAM1"
 model <- scGate::gating_model(model,name="Tcell.ATAC",signature = c("CD3G","CD3D","CD3E","CD2"), level = 2, positive = F)   # negative set
 
 #apply scgate
-pbmc <- scGate(data =pbmc, model = model, assay = "GeneActivity", output.col.name = "NK.ATAC", maxRank = maxRank.ATAC)
+pbmc <- scGate(data =pbmc, model = model, assay = "GeneActivity", output.col.name = "NK.ATAC", maxRank = maxRank.ATAC, save.levels = TRUE)
 ```
 
 Visualize the results
