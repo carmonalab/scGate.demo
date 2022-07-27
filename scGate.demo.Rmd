@@ -256,8 +256,10 @@ At each level in the tree, [UCell](https://github.com/carmonalab/UCell) scores a
 We can run the Plasma cell model on the whole-tumor dataset by Zilionis et al. (https://doi.org/10.1016/j.immuni.2019.03.009)
 
 ```{r,fig.height=5,fig.width=6}
+obj <- testing.datasets[["Zilionis"]]
+
 DimPlot(obj, group.by = "cell_type",label = T, repel =T,label.size = 3) + 
-    theme(aspect.ratio = 1) + ggtitle("Original manual annot") + NoLegend() 
+    theme(aspect.ratio = 1) + ggtitle("Original manual annotation") + NoLegend() 
 ```
 
 Run scGate with `save.levels=TRUE` to output per-level results
