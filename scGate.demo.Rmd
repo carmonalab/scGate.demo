@@ -311,13 +311,15 @@ orig <- DimPlot(obj, group.by = "cell_type",label = T, repel =T, label.size = 2)
 orig | multi
 ```
 
-We note that cell types for which a model was available were consistently annotated. In this example we did not provide models for e.g. Neutrophils and Mast cells, so these cells were left annotated. We leave it as an exercise to design models for these cell types based on markers from literature, and to increase the coverage of cells that can be confidently annotated.
+We note that cell types for which a model was available were consistently annotated. In this example we did not provide models for e.g. Neutrophils and Mast cells, so these cells were left unannotated. We leave it as an exercise to design models for these cell types based on markers from literature, and to increase the coverage of cells that can be confidently annotated. scGate users are welcome to contribute their gating models to the [scGate models repository](https://github.com/carmonalab/scGate_models)!
 
 # Further reading
 
 The scGate package and installation instructions are available at: [scGate package](https://github.com/carmonalab/scGate)
 
 The code for this demo can be found on [GitHub](https://github.com/carmonalab/scGate.demo)
+
+The repository for scGate gating moels is at: [scGate models repository](https://github.com/carmonalab/scGate_models)
 
 # References
 
