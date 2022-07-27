@@ -1,5 +1,5 @@
 ---
-title: Apply scGate to filter cell types from Gubin et al. (2018)
+title: Apply scGate to filter cell types from mouse tumor-infiltrating immune cells from Gubin et al. (2018)
 author: "M. Andreatta <massimo.andreatta at unil.ch>"
 date: "13/08/2021"
 knit: (function(input_file, encoding) {
@@ -23,6 +23,7 @@ library(reshape2)
 library(GEOquery)
 library(Seurat)
 library(scGate)
+library(patchwork)
 ```
 
 ```{r}
@@ -32,7 +33,7 @@ geo_acc <- "GSE119352"
 
 gse <- getGEO(geo_acc)
 datadir <- "input/Gubin"
-dir.create(datadir)
+dir.create(datadir,recursive = T)
 
 series <- paste0(geo_acc, "_series_matrix.txt.gz")
 if(do_download){
@@ -162,17 +163,6 @@ data.filter <- scGate(data.seurat, model = models$mouse$generic$Tcell.alphabeta)
 
 DimPlot(data.filter)
 ```
-More plots
-```{r}
-pll <- list()
-pure.levels <- grep("is.pure.level", colnames(data.filter@meta.data), value=T)
-for (lev in pure.levels) {
-  pll[[lev]] <- DimPlot(data.filter, group.by = lev)
-}
-wrap_plots(pll, ncol = 2)
-
-FeaturePlot(data.filter, features = c("Lymphoid_UCell","Tcell_UCell","Myeloid_UCell","NK_UCell"))
-```
 
 Subset on T cells
 ```{r}
@@ -192,13 +182,6 @@ DimPlot(data.filter)
 
 More plots
 ```{r}
-pll <- list()
-pure.levels <- grep("is.pure.level", colnames(data.filter@meta.data), value=T)
-for (lev in pure.levels) {
-  pll[[lev]] <- DimPlot(data.filter, group.by = lev)
-}
-wrap_plots(pll, ncol = 2)
-
 FeaturePlot(data.filter, features = c("Myeloid_UCell","MoMacDC_UCell","Neutrophils_UCell","Tcell_UCell"))
 ```
 
