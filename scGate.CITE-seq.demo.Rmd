@@ -22,6 +22,7 @@ The CITE-seq dataset by [Hao.et al. 2021](https://doi.org/10.1016/j.cell.2021.04
 renv::restore()
 library(ggplot2)
 library(dplyr)
+library(Seurat)
 library(UCell)
 library(scGate)
 library(viridis)
@@ -147,7 +148,7 @@ And conversely, generate a model to filter T cells based on ADT readouts.
 t.adt <- gating_model(name = "t.adt", signature = c("CD3-1","CD3-2","CD41-"))
 
 # filtering 
-hao <- scGate(data = hao, model = t.adt, assay = "ADT",maxRank = maxrank)
+hao <- scGate(data = hao, model = t.adt, assay = "ADT",maxRank = maxrank, save.levels=T)
 
 # UMAP plot
 DimPlot(hao, cols = c(list(Impure = "gray", Pure = "green")))  + ggtitle("scGate Tcells (ADT assay)") + theme(aspect.ratio=1)
@@ -201,7 +202,7 @@ Build and apply NK model for ADT assay
 nk.adt <- gating_model(name = "NK.adt", signature = c("CD56-1", "CD56-2"))
 nk.adt <- gating_model(model = nk.adt, name = "tcell.adt",signature = c("CD3-1","CD3-2"), negative = T)
 
-hao <- scGate(data = hao, model = nk.adt, assay = "ADT",maxRank = maxrank, pos.thr = 0.4, neg.thr = 0.7, output.col.name = "NK.adt")
+hao <- scGate(data = hao, model = nk.adt, assay = "ADT",maxRank = maxrank, pos.thr = 0.4, neg.thr = 0.7, output.col.name = "NK.adt", save.levels = T)
 plot_UCell_scores(obj = hao, model = nk.adt, pos.thr = 0.4, neg.thr = 0.7)
 a <- DimPlot(hao, cols = c(list(Impure = "gray", Pure = "green")),group.by = "NK.adt") + theme(aspect.ratio = 1) + ggtitle("scGate NKs (ADT assay)")
 b <- VlnPlot(hao,features = c("NCAM1","KLRD1","CD3D","CD3G"), assay = "SCT",
