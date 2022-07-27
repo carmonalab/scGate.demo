@@ -112,7 +112,7 @@ a <- FeaturePlot(hao, features=c("Bcell.sct_UCell"), order = T) +
 
 
 DefaultAssay(hao) <- "ADT"
-b <- FeaturePlot(hao, features=c("Bcell.adt_UCell"), sort.cell = T) + 
+b <- FeaturePlot(hao, features=c("Bcell.adt_UCell"), order = T) + 
        scale_color_viridis(option="D") + theme(aspect.ratio=1)
 
 a | b
@@ -148,10 +148,11 @@ And conversely, generate a model to filter T cells based on ADT readouts.
 t.adt <- gating_model(name = "t.adt", signature = c("CD3-1","CD3-2","CD41-"))
 
 # filtering 
-hao <- scGate(data = hao, model = t.adt, assay = "ADT",maxRank = maxrank, save.levels=T)
+hao <- scGate(data = hao, model = t.adt, assay = "ADT",maxRank = maxrank)
 
 # UMAP plot
-DimPlot(hao, cols = c(list(Impure = "gray", Pure = "green")))  + ggtitle("scGate Tcells (ADT assay)") + theme(aspect.ratio=1)
+DimPlot(hao, cols = c(list(Impure = "gray", Pure = "green")))  + 
+  ggtitle("scGate Tcells (ADT assay)") + theme(aspect.ratio=1)
 ```
 
 Almost all cells were filtered out by the method. When using ADT data, one needs to check if default positive/negative threshold (0.2) are appropriate:
@@ -167,7 +168,8 @@ t.adt <- gating_model(name = "t.adt", signature = c("CD3-1","CD3-2","CD41-"))
 # filtering
 hao <- scGate(data = hao, model = t.adt, assay = "ADT", maxRank = maxrank, pos.thr = 0.05)
 
-a <- DimPlot(hao, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1) + ggtitle("scGate Tcells (ADT assay)")
+a <- DimPlot(hao, cols = c(list(Impure = "gray", Pure = "green"))) + 
+  theme(aspect.ratio = 1) + ggtitle("scGate Tcells (ADT assay)")
 
 # Control markers on SCT assay
 b <- VlnPlot(hao,features = c("CD3E","CD3D","ITGA2B"), assay = "SCT", ncol=2,
@@ -186,9 +188,11 @@ nk.sct <- gating_model(name = "NK.sct", signature = c("NCAM1","KLRD1","CD3D-"))
 Filter on SCT data
 ```{r warning=F, collapse=TRUE, message=F}
 hao <- scGate(data = hao, model = nk.sct, assay = "SCT",output.col.name = "NK.sct")
-a <- DimPlot(hao, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1) + ggtitle("scGate NKs (SCT assay)")
+a <- DimPlot(hao, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1) + 
+  ggtitle("scGate NKs (SCT assay)")
 
-b <- VlnPlot(hao,features = c("CD56-1", "CD56-2","CD3-1","CD3-2"), assay = "ADT",cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0,ncol = 2)
+b <- VlnPlot(hao,features = c("CD56-1", "CD56-2","CD3-1","CD3-2"), assay = "ADT",
+             cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0,ncol = 2)
 
 a | b
 ```
@@ -202,9 +206,11 @@ Build and apply NK model for ADT assay
 nk.adt <- gating_model(name = "NK.adt", signature = c("CD56-1", "CD56-2"))
 nk.adt <- gating_model(model = nk.adt, name = "tcell.adt",signature = c("CD3-1","CD3-2"), negative = T)
 
-hao <- scGate(data = hao, model = nk.adt, assay = "ADT",maxRank = maxrank, pos.thr = 0.4, neg.thr = 0.7, output.col.name = "NK.adt", save.levels = T)
+hao <- scGate(data = hao, model = nk.adt, assay = "ADT",maxRank = maxrank,
+              pos.thr = 0.4, neg.thr = 0.7, output.col.name = "NK.adt")
 plot_UCell_scores(obj = hao, model = nk.adt, pos.thr = 0.4, neg.thr = 0.7)
-a <- DimPlot(hao, cols = c(list(Impure = "gray", Pure = "green")),group.by = "NK.adt") + theme(aspect.ratio = 1) + ggtitle("scGate NKs (ADT assay)")
+a <- DimPlot(hao, cols = c(list(Impure = "gray", Pure = "green")),group.by = "NK.adt") +
+  theme(aspect.ratio = 1) + ggtitle("scGate NKs (ADT assay)")
 b <- VlnPlot(hao,features = c("NCAM1","KLRD1","CD3D","CD3G"), assay = "SCT",
              cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0,ncol = 2)
 

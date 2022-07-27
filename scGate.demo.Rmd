@@ -167,6 +167,7 @@ my_scGate_model <- gating_model(name = "immune", signature = c("PTPRC"), level =
 my_scGate_model <- gating_model(model = my_scGate_model, name = "macrophage", signature = c("CD68","FCGR1A"), level = 2)  # add positive signature at second step
 
 obj <- scGate(data = obj, model = my_scGate_model, save.levels = T)
+
 DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1)
 #ggsave("plots/umap.jerby.macro.pdf",width = 4, height = 4)
 ```
