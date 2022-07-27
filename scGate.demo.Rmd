@@ -281,7 +281,7 @@ scGate::performance.metrics(actual = obj$Plasma_cell, pred = obj$is.pure== "Pure
 
 # scGate as a multi-class classifier
 
-scGate can also be used a cell type classifier, to annotate multiple cell types in a dataset. Simply provide a list of models (one for each cell type of interest) to scGate and these will be jointly evaluated.
+scGate can also be used a cell type classifier, to annotate multiple cell types in a dataset. Simply provide a list of models (one for each cell type of interest) to scGate and these will be jointly evaluated (faster than computing them individually)
 
 For instance, we can use a list of models from the default scGate DB:
 ```{r}
@@ -298,11 +298,12 @@ obj <- testing.datasets[["Zilionis"]]
 obj <- scGate(obj, model=models.list)
 ```
 
-Cells that are unequivocally assigned to only one cell type will be annotated to that cell type; cells that pass the gate of more than one model will be annotated as "Multi"; cells that cannot be gated by any model will be labeled as *NA*.
+Cells that are unequivocally assigned to only one cell type will be annotated to that cell type; cells that pass the gate of more than one model will be annotated as "Multi"; cells that cannot be gated by any model will be labeled as *NA*. These labels are exported in a new metadata column named  `scGate_multi`:
 
 ```{r}
 table(obj$scGate_multi, useNA="ifany")
 ```
+
 
 ```{r,fig.height=5,fig.width=11}
 multi <- DimPlot(obj, group.by="scGate_multi") + theme(aspect.ratio = 1)
@@ -313,7 +314,32 @@ orig <- DimPlot(obj, group.by = "cell_type",label = T, repel =T, label.size = 2)
 orig | multi
 ```
 
+
 We note that cell types for which a model was available were consistently annotated. In this example we did not provide models for e.g. Neutrophils and Mast cells, so these cells were left unannotated. We leave it as an exercise to design models for these cell types based on markers from literature, and to increase the coverage of cells that can be confidently annotated. scGate users are welcome to contribute their gating models to the [scGate models repository](https://github.com/carmonalab/scGate_models)!
+
+
+# fast gating using pre-calculated dimensionality reduction
+
+By default, scGate performs dimensionality reduction at each hierarchical level of the gating strategy for sensitive knn smoothing. 
+However, if dimensionality reduction is pre-calculated this can be provided to scGate for faster computation.
+This is particularly useful to gate previously integrated datasets (eg using Harmony, Seurat, or STACAS).
+We can also use multiple cores to speed up.
+
+Here we will use the pre-calculated pca space, by setting `reduction = "pca"`
+
+```{r}
+obj <- scGate(obj, model=models.list, reduction = "pca", ncores = 4)
+```
+
+
+```{r,fig.height=5,fig.width=11}
+multi <- DimPlot(obj, group.by="scGate_multi") + theme(aspect.ratio = 1)
+
+orig <- DimPlot(obj, group.by = "cell_type",label = T, repel =T, label.size = 2) + 
+  theme(aspect.ratio = 1) + ggtitle("Original manual annot") + NoLegend() 
+
+orig | multi
+```
 
 # Further reading
 
