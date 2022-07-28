@@ -205,7 +205,7 @@ my_scGate_model_edited <- scGate::load_scGate_model("test.tsv") # tabulated-text
 ```
 
 
-# Fast evaluation of model performance
+# Evaluation of model performance
 
 We provide a built-in function `test_my_model` to automatically evaluate the performance of a gating model using 3 pre-annotated testing datasets:
 
@@ -319,18 +319,17 @@ orig | multi
 We note that cell types for which a model was available were consistently annotated. In this example we did not provide models for e.g. Neutrophils and Mast cells, so these cells were left unannotated. We leave it as an exercise to design models for these cell types based on markers from literature, and to increase the coverage of cells that can be confidently annotated. scGate users are welcome to contribute their gating models to the [scGate models repository](https://github.com/carmonalab/scGate_models)!
 
 
-# fast gating using pre-calculated dimensionality reduction
+# Fast gating using pre-calculated dimensionality reduction
 
-By default, scGate performs dimensionality reduction at each hierarchical level of the gating strategy for sensitive knn smoothing. 
-However, if dimensionality reduction is pre-calculated this can be provided to scGate for faster computation.
-This is particularly useful to gate previously integrated datasets (eg using Harmony, Seurat, or STACAS).
-We can also use multiple cores to speed up.
+By default, scGate performs dimensionality reduction (DM) at each hierarchical level of the gating strategy, for sensitive kNN smoothing (see paper). However, if a pre-calculated DM is available in your input object, this can be provided to scGate to avoid this step and speed-up computation. This feature can be particularly useful to gate integrated datasets (eg after using Harmony, Seurat, or STACAS).
 
-Here we will use the pre-calculated pca space, by setting `reduction = "pca"`
+Here we will run scGate using the pre-calculated pca space, by setting `reduction = "pca"`
 
 ```{r}
 obj <- scGate(obj, model=models.list, reduction = "pca", ncores = 4)
 ```
+
+We also used `ncores=4` to tell scGate to parallelize the computation using 4 cores, to speed up
 
 
 ```{r,fig.height=5,fig.width=11}
