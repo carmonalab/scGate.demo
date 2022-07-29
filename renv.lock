@@ -678,6 +678,26 @@
         "BiocGenerics"
       ]
     },
+    "STACAS": {
+      "Package": "STACAS",
+      "Version": "2.0.0",
+      "Source": "GitHub",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteRepo": "STACAS",
+      "RemoteUsername": "carmonalab",
+      "RemoteRef": "HEAD",
+      "RemoteSha": "bc7b8a0fa0b6d71a231a3c5d5da5ce1a631f97f2",
+      "Hash": "0ff158a8a5cccc2bc07d9430ae3ab02d",
+      "Requirements": [
+        "Seurat",
+        "future",
+        "future.apply",
+        "ggplot2",
+        "ggridges",
+        "pbapply"
+      ]
+    },
     "Seurat": {
       "Package": "Seurat",
       "Version": "4.1.1",
@@ -728,6 +748,23 @@
         "spatstat.geom",
         "tibble",
         "uwot"
+      ]
+    },
+    "SeuratData": {
+      "Package": "SeuratData",
+      "Version": "0.2.2",
+      "Source": "GitHub",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteRepo": "seurat-data",
+      "RemoteUsername": "satijalab",
+      "RemoteRef": "HEAD",
+      "RemoteSha": "d6a8ce61ccb21a3b204f194d07009772c822791d",
+      "Hash": "b2b54a8de8cebddb35af58e568dbdd53",
+      "Requirements": [
+        "cli",
+        "crayon",
+        "rappdirs"
       ]
     },
     "SeuratObject": {
@@ -1579,6 +1616,26 @@
       "Hash": "32600a0bea839c4d0ac998d7c547ecf7",
       "Requirements": []
     },
+    "harmony": {
+      "Package": "harmony",
+      "Version": "0.1.0",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "0b62cc8289d7941fedefeb5d4894bbe2",
+      "Requirements": [
+        "Matrix",
+        "Rcpp",
+        "RcppArmadillo",
+        "RcppProgress",
+        "cowplot",
+        "dplyr",
+        "ggplot2",
+        "irlba",
+        "rlang",
+        "tibble",
+        "tidyr"
+      ]
+    },
     "here": {
       "Package": "here",
       "Version": "1.0.1",
@@ -2397,8 +2454,8 @@
       "RemoteRepo": "scGate",
       "RemoteUsername": "carmonalab",
       "RemoteRef": "HEAD",
-      "RemoteSha": "25a16cc03b1cf9e52ef317713b468f9dedf60286",
-      "Hash": "6cd024335f5dc68b41ef33de26118ce2",
+      "RemoteSha": "af655895eb4c3795de8ec6070d835cdfef8eb67d",
+      "Hash": "3282bda7ca900503ac60f5a04debbc6e",
       "Requirements": [
         "Seurat",
         "UCell",

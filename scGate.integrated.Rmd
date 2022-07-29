@@ -1,0 +1,198 @@
+---
+title: "scGate to annotate integrated scRNA-seq datasets"
+author: "M. Andreatta and S. Carmona"
+date: "29/07/2022"
+output:
+  rmdformats::readthedown:
+    self-contained: true
+    highlight: haddock
+    thumbnails: false
+    css: styles.css
+knit: (function(input_file, encoding) {
+  out_dir <- 'docs';
+  rmarkdown::render(input_file, encoding=encoding,
+ output_file=file.path(dirname(input_file), out_dir, 'scGate.integrated.html'))})
+---
+
+A typical task in single-cell analysis is cell type annotation of datasets composed of multiple samples. You may have used one of several tools for batch-effect correction to integrate samples from different sources and technologies, and generated a combined map. In this demo we will show how [scGate](https://github.com/carmonalab/scGate) can help you annotate this integrated map, by using simple, customizable models based on standard gene markers from literature. We will show the case of a PBMC dataset integrated either with [STACAS](https://github.com/carmonalab/STACAS) or [Harmony](https://github.com/immunogenomics/harmony), but the same applies to different integration tools.
+
+# Set up the environment
+
+```{r, message=F, warning=F,results=F}
+library(renv)
+renv::activate()
+renv::restore()
+
+library(ggplot2)
+library(dplyr)
+library(patchwork)
+library(Seurat)
+library(harmony)
+
+#Packages from GitHub
+remotes::install_github('satijalab/seurat-data')
+remotes::install_github("carmonalab/scGate")
+remotes::install_github("carmonalab/STACAS")
+
+library(scGate)
+library(SeuratData)
+library(STACAS)
+```
+
+
+```{r setup, echo=FALSE, message=F, warning=F, results=F}
+library(knitr)
+library(rmdformats)
+library(formatR)
+
+
+## Global options
+options(max.print="75")
+opts_chunk$set(echo=TRUE,
+	             cache=TRUE,
+               cache.lazy=FALSE,
+               prompt=FALSE,
+               tidy=TRUE,
+               comment=NA,
+               message=FALSE,
+               warning=FALSE,
+               dev='png')
+opts_knit$set(width=75)
+
+```
+
+# Get a test dataset
+
+Download the dataset of PBMCs ([SCP424](https://singlecell.broadinstitute.org/single_cell/study/SCP424/single-cell-comparison-pbmc-data#/)) distributed with SeuratData. For more information on this dataset you can do `?pbmcsca`
+
+```{r}
+options(timeout = max(300, getOption("timeout")))
+InstallData("pbmcsca")
+data("pbmcsca")
+```
+
+
+# scGate on STACAS-integrated object
+```{r message=F, results=F, warning=F}
+data("pbmcsca")
+pbmcsca <- NormalizeData(pbmcsca)
+
+pbmc.list <- SplitObject(pbmcsca, split.by = "Method")
+pbmc.stacas <- Run.STACAS(pbmc.list, anchor.features = 2000)
+pbmc.stacas <- ScaleData(pbmc.stacas) %>% RunPCA() %>% RunUMAP(dims = 1:30)
+```
+
+```{r fig.width=6}
+DimPlot(pbmc.stacas, group.by = "Method") + theme(aspect.ratio = 1)
+```
+
+We can run scGate directly on this integrated space, for instance to isolate NK cells
+```{r}
+models.db <- scGate::get_scGateDB()
+model.NK <- models.db$human$generic$NK
+
+pbmc.stacas <- scGate(pbmc.stacas, model=model.NK, reduction="pca", 
+                      ncores=4, output.col.name = "NK")
+```
+
+We can compare the automatic filtering to the "CellType" manual annotation by the authors:
+```{r fig.width=12}
+DimPlot(pbmc.stacas, group.by = c("NK","CellType"), ncol = 2) + theme(aspect.ratio = 1)
+```
+
+New models can be easily defined based on cell type-specific markers from literature. For instance, we can set up a new simple model to identify Megakaryocytes:
+```{r}
+model.MK <- scGate::gating_model(name="Megakaryocyte", signature=c("ITGA2B","PF4","PPBP"))
+
+pbmc.stacas <- scGate(pbmc.stacas, model=model.MK, reduction="pca",
+                      ncores=4, output.col.name = "Megakaryocyte")
+```
+
+```{r fig.width=12}
+DimPlot(pbmc.stacas, group.by = c("Megakaryocyte","CellType"), ncol = 2) + theme(aspect.ratio = 1)
+```
+
+We can also run multiple gating models at once. Besides pure/impure classifications for each model, scGate will also return a combined annotation based on all the models we provided. In this setting, scGate can be used as a multi-classifier to automatically annotate datasets:
+```{r}
+models.db <- scGate::get_scGateDB()
+
+models.hs <- models.db$human$generic
+models.list <- models.hs[c("Bcell","CD4T","CD8T","MoMacDC","Plasma_cell","NK","Erythrocyte","Megakaryocyte")]
+
+pbmc.stacas <- scGate(pbmc.stacas, model=models.list, reduction="pca", ncores=4)
+```
+
+```{r fig.width=22}
+DimPlot(pbmc.stacas, group.by = c("Method", "CellType", "scGate_multi"), ncol = 3) + theme(aspect.ratio = 1)
+```
+
+UCell scores for individual signatures are also available in metadata ('*_UCell' columns)
+```{r fig.height=6, fig.width=13}
+FeaturePlot(pbmc.stacas, ncol=3,
+            features=c("Tcell_UCell","CD4T_UCell","CD8T_UCell",
+            "MoMacDC_UCell","pDC_UCell","Bcell_UCell"))
+```
+
+# scGate on Harmony-integrated object
+
+A very popular tool for single-cell data integration is [Harmony](https://github.com/immunogenomics/harmony). The `RunHarmony()` function provides a convenient wrapper to integrate samples stored in a single Seurat object:
+
+```{r message=F, results=F, warning=F}
+pbmcsca <- NormalizeData(pbmcsca) %>% FindVariableFeatures() %>% ScaleData() %>% RunPCA(npcs=30)
+pbmc.harmony <- RunHarmony(pbmcsca, group.by.vars = "Method")
+```
+
+The corrected embeddings after batch effect correction will be stored in the 'harmony' reduction:
+```{r}
+pbmc.harmony <- RunUMAP(pbmc.harmony, reduction = "harmony", dims = 1:30)
+```
+
+Let's apply scGate in this space to isolate high-quality T cells:
+```{r}
+models.db <- scGate::get_scGateDB()
+model.Tcell <- models.db$human$generic$Tcell
+
+pbmc.harmony <- scGate(pbmc.harmony, model=model.Tcell, reduction="harmony", 
+                      ncores=4, output.col.name = "Tcell")
+```
+
+```{r fig.width=12}
+DimPlot(pbmc.harmony, group.by = c("Tcell","CellType"), ncol = 2) + theme(aspect.ratio = 1)
+```
+
+We can also run multiple gating models at once. Besides pure/impure classifications for each model, scGate will also return a consensus annotation based on all the models we provided. In this setting, scGate can be used as a multi-classifier to automatically annotate datasets:
+```{r}
+models.db <- scGate::get_scGateDB()
+
+models.hs <- models.db$human$generic
+models.list <- models.hs[c("Bcell","CD4T","CD8T","MoMacDC","Plasma_cell","NK","Erythrocyte","Megakaryocyte")]
+
+pbmc.harmony <- scGate(pbmc.harmony, model=models.list, reduction="harmony", ncores=4)
+```
+
+```{r fig.width=22}
+DimPlot(pbmc.harmony, group.by = c("Method", "CellType", "scGate_multi"), ncol = 3) + theme(aspect.ratio = 1)
+```
+
+# Final notes
+
+scGate can be applied as a 'quality check' on invidual samples, to *purify a cell population of interest and remove contaminants*, prior to more advanced steps in single-cell data analysis (e.g. integration, clustering, differential gene expression, etc.). However, it is becoming increasingly common for analysts to begin working on pre-integrated collections of datasets, for instance when assembled and published by other research groups. As we have shown here, scGate can be applied directly on integrated objects, and their low-dimensional representations, to aid the *annotation of cell types based on known gene markers*.
+
+By default, scGate calculates PCA embeddings from normalized feature counts, and repeats this operation for each hierarchical level of a gating model. Signature scores for each cell (calculated using [UCell](https://bioconductor.org/packages/release/bioc/html/UCell.html)) are *smoothed by the scores of the neighboring cells*, and used to determine whether a given cell "passes the gate". While such neighbor smoothing is generally more accurate when recalculated at each level of gating, it can be costly in terms of computing time. Providing a precalculated "reduction" to scGate, as shown in this demo, can significantly *speed up computation and take advantage of dimensionality reductions in integrated space*. The user must be aware, however, that gating results in the original or integrated space will, in general, differ; if batch effect correction introduces distorsions in the integrated space, this will reflect in the nearest neighbors of cells across samples, and as a consequence on the signature scores used for gating. 
+
+
+# Further reading
+
+The scGate package and installation instructions are available at: [scGate package](https://github.com/carmonalab/scGate)
+
+The code for this demo can be found on [GitHub](https://github.com/carmonalab/scGate.demo)
+
+The repository for scGate gating moels is at: [scGate models repository](https://github.com/carmonalab/scGate_models)
+
+# References
+
+Ding, Jiarui, et al. **"Systematic comparison of single-cell and single-nucleus RNA-sequencing methods."** *Nature biotechnology* 38.6 (2020): 737-746.
+
+Andreatta, Massimo, and Santiago J. Carmona. **"STACAS: Sub-Type Anchor Correction for Alignment in Seurat to integrate single-cell RNA-seq data."** *Bioinformatics* 37.6 (2021): 882-884.
+
+Korsunsky, Ilya, et al. **"Fast, sensitive and accurate integration of single-cell data with Harmony."** *Nature methods* 16.12 (2019): 1289-1296.
