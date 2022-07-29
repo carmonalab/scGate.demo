@@ -27,12 +27,22 @@ library(ggplot2)
 library(dplyr)
 library(patchwork)
 library(Seurat)
-library(harmony)
+
+if (!require("harmony", quietly = TRUE))
+install.packages("harmony")
+
+if (!require("remotes", quietly = TRUE))
+    install.packages("remotes")
 
 #Packages from GitHub
-remotes::install_github('satijalab/seurat-data')
+if (!require("seurat-data", quietly = TRUE))
+    remotes::install_github('satijalab/seurat-data')
+
+if (!require("harmony", quietly = TRUE))
+install.packages("harmony")
+
 remotes::install_github("carmonalab/scGate")
-remotes::install_github("carmonalab/STACAS")
+remotes::install_github("carmonalab/STACAS",ref="dev")
 
 library(scGate)
 library(SeuratData)
@@ -69,17 +79,22 @@ Download the dataset of PBMCs ([SCP424](https://singlecell.broadinstitute.org/si
 options(timeout = max(300, getOption("timeout")))
 InstallData("pbmcsca")
 data("pbmcsca")
+
 ```
 
 
 # scGate on STACAS-integrated object
-```{r message=F, results=F, warning=F}
-data("pbmcsca")
-pbmcsca <- NormalizeData(pbmcsca)
 
-pbmc.list <- SplitObject(pbmcsca, split.by = "Method")
-pbmc.stacas <- Run.STACAS(pbmc.list, anchor.features = 2000)
-pbmc.stacas <- ScaleData(pbmc.stacas) %>% RunPCA() %>% RunUMAP(dims = 1:30)
+Integrate different batches (in this example, datasets generated with different sequencing method) with STACAS
+```{r message=F, results=F, warning=F}
+
+nfeatures <- 1000 # define number of variable features to consider
+npcs <- 20 # define number of Principal Components for dimensionality reduction
+
+pbmcsca <- NormalizeData(pbmcsca) 
+pbmcsca.list <- SplitObject(pbmcsca, split.by = "Method") 
+pbmc.stacas <- Run.STACAS(pbmcsca.list, anchor.features = nfeatures, dims = 1:npcs)
+pbmc.stacas <- RunUMAP(pbmc.stacas, dims = 1:npcs)
 ```
 
 ```{r fig.width=6}
@@ -138,13 +153,13 @@ FeaturePlot(pbmc.stacas, ncol=3,
 A very popular tool for single-cell data integration is [Harmony](https://github.com/immunogenomics/harmony). The `RunHarmony()` function provides a convenient wrapper to integrate samples stored in a single Seurat object:
 
 ```{r message=F, results=F, warning=F}
-pbmcsca <- NormalizeData(pbmcsca) %>% FindVariableFeatures() %>% ScaleData() %>% RunPCA(npcs=30)
+pbmcsca <- NormalizeData(pbmcsca) %>% FindVariableFeatures(nfeatures=nfeatures) %>% ScaleData() %>% RunPCA(npcs=npcs)
 pbmc.harmony <- RunHarmony(pbmcsca, group.by.vars = "Method")
 ```
 
 The corrected embeddings after batch effect correction will be stored in the 'harmony' reduction:
 ```{r}
-pbmc.harmony <- RunUMAP(pbmc.harmony, reduction = "harmony", dims = 1:30)
+pbmc.harmony <- RunUMAP(pbmc.harmony, reduction = "harmony", dims = 1:npcs)
 ```
 
 Let's apply scGate in this space to isolate high-quality T cells:
@@ -173,6 +188,11 @@ pbmc.harmony <- scGate(pbmc.harmony, model=models.list, reduction="harmony", nco
 ```{r fig.width=22}
 DimPlot(pbmc.harmony, group.by = c("Method", "CellType", "scGate_multi"), ncol = 3) + theme(aspect.ratio = 1)
 ```
+
+```{r}
+sessionInfo()
+```
+
 
 # Final notes
 

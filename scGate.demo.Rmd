@@ -30,6 +30,8 @@ library(viridis)
 library(Seurat)
 
 #Install scGate
+if (!require("remotes", quietly = TRUE))
+    install.packages("remotes")
 remotes::install_github("carmonalab/scGate")
 
 library(scGate)

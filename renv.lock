@@ -750,23 +750,6 @@
         "uwot"
       ]
     },
-    "SeuratData": {
-      "Package": "SeuratData",
-      "Version": "0.2.2",
-      "Source": "GitHub",
-      "RemoteType": "github",
-      "RemoteHost": "api.github.com",
-      "RemoteRepo": "seurat-data",
-      "RemoteUsername": "satijalab",
-      "RemoteRef": "HEAD",
-      "RemoteSha": "d6a8ce61ccb21a3b204f194d07009772c822791d",
-      "Hash": "b2b54a8de8cebddb35af58e568dbdd53",
-      "Requirements": [
-        "cli",
-        "crayon",
-        "rappdirs"
-      ]
-    },
     "SeuratObject": {
       "Package": "SeuratObject",
       "Version": "4.1.0",
@@ -1616,26 +1599,6 @@
       "Hash": "32600a0bea839c4d0ac998d7c547ecf7",
       "Requirements": []
     },
-    "harmony": {
-      "Package": "harmony",
-      "Version": "0.1.0",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "0b62cc8289d7941fedefeb5d4894bbe2",
-      "Requirements": [
-        "Matrix",
-        "Rcpp",
-        "RcppArmadillo",
-        "RcppProgress",
-        "cowplot",
-        "dplyr",
-        "ggplot2",
-        "irlba",
-        "rlang",
-        "tibble",
-        "tidyr"
-      ]
-    },
     "here": {
       "Package": "here",
       "Version": "1.0.1",
@@ -2443,27 +2406,6 @@
         "htmltools",
         "rappdirs",
         "rlang"
-      ]
-    },
-    "scGate": {
-      "Package": "scGate",
-      "Version": "1.1.1",
-      "Source": "GitHub",
-      "RemoteType": "github",
-      "RemoteHost": "api.github.com",
-      "RemoteRepo": "scGate",
-      "RemoteUsername": "carmonalab",
-      "RemoteRef": "HEAD",
-      "RemoteSha": "af655895eb4c3795de8ec6070d835cdfef8eb67d",
-      "Hash": "3282bda7ca900503ac60f5a04debbc6e",
-      "Requirements": [
-        "Seurat",
-        "UCell",
-        "dplyr",
-        "ggplot2",
-        "ggridges",
-        "patchwork",
-        "reshape2"
       ]
     },
     "scales": {
