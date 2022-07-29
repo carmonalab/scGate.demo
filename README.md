@@ -18,6 +18,8 @@ We will be posting here several demos for scGate usage in different scenarios:
 
 3. Purifying cells on **CITE-seq data** - [scGate CITE-seq](https://carmonalab.github.io/scGate.demo/scGate.CITE-seq.html) 
 
+4. scGate to annotate scRNA-seq datasets integrated with **Harmony** and **STACAS** - [scGate integrated](https://carmonalab.github.io/scGate.demo/scGate.integrated.html)
+
 ## Clone the repository
 
 To access the raw code and run these demos on your machine, you may also clone the repository:
