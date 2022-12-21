@@ -20,7 +20,6 @@ A typical task in single-cell analysis is cell type annotation of datasets compo
 
 ```{r, message=F, warning=F,results=F}
 library(renv)
-renv::activate()
 renv::restore()
 
 library(ggplot2)
@@ -41,7 +40,6 @@ if (!require("seurat-data", quietly = TRUE))
 if (!require("harmony", quietly = TRUE))
 install.packages("harmony")
 
-remotes::install_github("carmonalab/scGate")
 remotes::install_github("carmonalab/STACAS")
 
 library(scGate)

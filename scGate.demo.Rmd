@@ -20,7 +20,6 @@ This demo illustrates the main functionalities of the [scGate package](https://g
 
 ```{r, message=F, warning=F,results=F}
 library(renv)
-renv::activate()
 renv::restore()
 
 library(ggplot2)
@@ -30,10 +29,7 @@ library(viridis)
 library(Seurat)
 
 #Install scGate
-if (!require("remotes", quietly = TRUE))
-    install.packages("remotes")
-remotes::install_github("carmonalab/scGate")
-
+install.packages("scGate")
 library(scGate)
 ```
 
@@ -127,7 +123,7 @@ DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.rat
 ```
 
 
-With this simple model, 95% of NKs (recall) are isolated with a 100% purity (Precision), and overall classification performance (MCC) of 97%
+With this simple model, 91% of NKs (recall) are isolated with a 100% purity (Precision), and overall classification performance (MCC) of 95%
 ```{r}
 scGate::performance.metrics(grepl("^NK",obj$cell_type),obj$is.pure=="Pure")
 ```
@@ -178,7 +174,7 @@ DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.rat
 scGate::performance.metrics(obj$cell_type %in% c("Macrophage"),obj$is.pure=="Pure")
 ```
 
-Here we isolated 92% of macrophages with a 91% purity (according to annotation by Jerby-Arnon et al.). We could easily improve PREC and REC by adding more positive and negative markers, respectively (e.g. removing lymphocytes)
+Here we isolated 95% of macrophages with a 90% purity (according to annotation by Jerby-Arnon et al.). We could easily improve PREC and REC by adding more positive and negative markers, respectively (e.g. removing lymphocytes)
 
 
 We can always inspect the distribution of UCell scores calculated for each signature. For example:
@@ -217,7 +213,7 @@ panBcell.performance <- test_my_model(my_scGate_model, target = "Bcell")
 panBcell.performance$performance
 ```
 
-In one of the datasets, precision was not optimal (85%).
+In one of the datasets, precision was not optimal (90%).
 
 We can refine it, for instance, by removing potentially contaminating T cell genes (CD3D) and try again:
 
