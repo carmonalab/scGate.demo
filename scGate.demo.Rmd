@@ -29,11 +29,7 @@ library(patchwork)
 library(viridis)
 library(Seurat)
 
-#Install scGate
-if (!require("remotes", quietly = TRUE))
-    install.packages("remotes")
-remotes::install_github("carmonalab/scGate")
-
+install.packages("scGate")
 library(scGate)
 ```
 

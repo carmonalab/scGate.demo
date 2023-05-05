@@ -1,0 +1,51 @@
+---
+title: "scGate: marker-based purification of cell types from single-cell RNA-seq datasets"
+author: "M. Andreatta, A. Berenstein and S. Carmona"
+output:
+  rmdformats::readthedown:
+    self-contained: true
+    highlight: haddock
+    thumbnails: false
+    css: styles.css
+knit: (function(input_file, encoding) {
+  out_dir <- 'docs';
+  rmarkdown::render(input_file, encoding=encoding,
+ output_file=file.path(dirname(input_file), out_dir, 'scGate.basic.usage.html'))})
+---
+
+This demo illustrates how to test a custom scGate gating model for an arbitrary target cell type
+
+
+```{r}
+library(remotes)
+#remotes::install_github("carmonalab/scGate", ref="dev")
+library(Seurat)
+library(scGate)
+```
+
+```{r}
+models <- get_scGateDB(branch="dev")
+my_model_MoMacDC <- models$human$generic$MoMacDC
+```
+
+```{r}
+#testing.datasets <- get_testing_data(version = 'hsa.latest')
+table(testing.datasets$Zilionis$cell_type)
+```
+
+
+```{r}
+test_my_model(my_model_MoMacDC, target="Macrophages M0", custom.dataset = testing.datasets$Zilionis)
+```
+
+
+Now we'll load a test neutrophil model
+```{r}
+#write.table(models$human$generic$MoMacDC, "scGatemodel_human_generic_neutrophils_test.tsv", sep = "\t")  # export and then edit on Excel
+my_model_neutro <- scGate::load_scGate_model("scGatemodel_human_generic_neutrophils_test.tsv")  # tabulated-text model can loaded
+```
+
+and evaluate it
+```{r}
+test_my_model(my_model_neutro, target="Neutrophils", custom.dataset = testing.datasets$Zilionis)
+```
