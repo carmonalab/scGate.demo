@@ -1,0 +1,230 @@
+---
+title: "scGate: single cell and sample sex imputation in single-cell RNA-seq datasets"
+author: "J.Garnica, M. Andreatta, and S. Carmona"
+date: "15/10/2023"
+output:
+  rmdformats::readthedown:
+    self-contained: true
+    highlight: haddock
+    thumbnails: false
+    css: styles.css
+knit: (function(input_file, encoding) {
+  out_dir <- 'docs';
+  rmarkdown::render(input_file, encoding=encoding,
+ output_file=file.path(dirname(input_file), out_dir, 'scGate.basic.usage.html'))})
+---
+
+
+Metadata pertaining to the sex of the individuals from whom the single-cell datasets originated is often unavailable. This demonstration showcases the powerful capabilities of the [scGate package](https://github.com/carmonalab/scGate) in the context of sex imputation at the single-cell and sample level. Sex imputation is a crucial step in understanding the biological differences and dynamics between male and female cells within heterogeneous single-cell datasets.
+
+
+
+# Setting up the environment
+
+```{r setup, echo=FALSE, message=F, warning=F, results=F}
+# knitting tools and set up
+library(knitr)
+library(rmdformats)
+library(formatR)
+
+## Global options
+options(max.print="75")
+opts_chunk$set(echo=TRUE,
+	             cache=TRUE,
+               cache.lazy=FALSE,
+               prompt=FALSE,
+               tidy=TRUE,
+               comment=NA,
+               message=FALSE,
+               warning=FALSE,
+               dev='png')
+opts_knit$set(width=75)
+
+```
+
+
+```{r, message=F, warning=F,results=F}
+# for now, UCell and scGate got to be the dev version
+# remotes::install_github("carmonalab/UCell", ref="dev")
+# remotes::install_github("carmonalab/scGate", ref="dev")
+
+
+# needed packages
+packages <- c("renv", "ggplot2", "dplyr", "Seurat", "scGate", "scCustomize")
+
+# install packages (if needed) and load them
+for(pck in packages){
+  # if(!require(pck)){
+  #   install.packages(pck)
+  # } 
+  library(pck, character.only = T)
+}
+
+renv::restore()
+
+# allow longer time downloading
+options(timeout = 30000)
+
+```
+
+
+
+
+
+# Load demo datasets
+
+
+```{r}
+testing.datasets <- scGate::get_testing_data(version = 'hsa.latest')
+lapply(testing.datasets, function(x){names(x@meta.data)})
+```
+
+
+# Load male gating model
+
+Given the spare expression of Y-linked and non-silenced X genes, the best approach is tu use the expression of **RPS4Y1** to classify each cell as female if there is no expression or as male if there is expression.
+
+```{r}
+# load all scGate models
+all_models <- scGate::get_scGateDB(force_update = T, branch = "dev")
+
+# select male model
+(male_model <- all_models$human$generic$Male)
+
+```
+
+# Impute cell sex
+```{r}
+# try with Satija dataset
+ds <- "JerbyArnon"
+
+# split dataset by patients
+dataset.list <- SplitObject(testing.datasets[[ds]] , split.by = "samples")
+
+# Run scGate for male model for each donor
+
+for(donor in names(dataset.list)){
+  dataset.list[[donor]] <- scGate(dataset.list[[donor]],
+                                  model = male_model, 
+                                  ncores = 8
+                                  )
+}
+
+# Rejoin list
+testing.datasets[[ds]] <- scCustomize::Merge_Seurat_List(dataset.list)
+```
+
+
+Next we shall impute the sex per single cell. 
+
+```{r}
+# Impute sex per cell type
+testing.datasets[[ds]]@meta.data <-
+  testing.datasets[[ds]]@meta.data %>% 
+      mutate(Sex = ifelse(is.pure == "Impure",
+                         "Female",
+                          "Male")
+             )
+```
+
+Analyze cell distribution in terms of sex imputation
+
+```{r}
+testing.datasets[[ds]]@meta.data %>% 
+  ggplot(aes(y = samples, fill = Sex)) +
+  geom_bar() +
+  theme_bw()
+```
+
+
+Compare with speckle
+
+```{r}
+#remotes::install_github("Oshlack/speckle")
+
+sex <- speckle::classifySex(testing.datasets[[ds]]@assays$RNA@counts,
+                            genome="Hs",
+                            qc = F)
+
+testing.datasets[[ds]] <- AddMetaData(testing.datasets[[ds]],
+                           metadata = sex,
+                           col.name = "Sex.prediction_Speckle")
+
+testing.datasets[[ds]]@meta.data %>% 
+  ggplot(aes(y = samples, fill = Sex.prediction_Speckle)) +
+  geom_bar() +
+  theme_bw()
+```
+
+
+```{r}
+refcd4 <- readRDS("~/Dropbox/CSI/reference_atlases/CD4T_human_ref_v2.rds")
+```
+
+# Impute cell sex
+```{r}
+
+# split dataset by patients
+dataset.list <- SplitObject(refcd4 , split.by = "patient")
+
+# Run scGate for male model for each donor
+
+for(donor in names(dataset.list)){
+  dataset.list[[donor]] <- scGate(dataset.list[[donor]],
+                                  model = male_model, 
+                                  ncores = 8
+                                  )
+}
+
+# Rejoin list
+refcd4 <- scCustomize::Merge_Seurat_List(dataset.list)
+```
+
+
+Next we shall impute the sex per single cell. 
+
+```{r}
+# Impute sex per cell type
+refcd4@meta.data <- refcd4@meta.data %>% 
+                      mutate(Sex = ifelse(is.pure == "Impure",
+                                         "Female",
+                                          "Male")
+                            )
+```
+
+Analyze cell distribution in terms of sex imputation
+
+```{r}
+refcd4@meta.data %>% 
+  ggplot(aes(y = patient, fill = Sex)) +
+  geom_bar() +
+  theme_bw()
+```
+
+Compare with speckle
+
+```{r}
+#remotes::install_github("Oshlack/speckle")
+
+sex <- speckle::classifySex(refcd4@assays$RNA@counts,
+                            genome="Hs",
+                            qc = F)
+
+refcd4 <- AddMetaData(refcd4,
+                       metadata = sex,
+                       col.name = "Sex.prediction_Speckle")
+
+refcd4@meta.data %>% 
+  ggplot(aes(y = patient, fill = Sex.prediction_Speckle)) +
+  geom_bar() +
+  theme_bw()
+```
+
+# References
+
+* Hao, Y., Hao, S., Andersen-Nissen, E., Mauck III, W. M., Zheng, S., Butler, A., ... & Satija, R. (2021). *Integrated analysis of multimodal single-cell data*. Cell.
+
+
+
+
+
