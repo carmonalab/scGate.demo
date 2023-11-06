@@ -2856,13 +2856,8 @@
     "scGate": {
       "Package": "scGate",
       "Version": "1.6.0",
-      "Source": "GitHub",
-      "RemoteType": "github",
-      "RemoteHost": "api.github.com",
-      "RemoteRepo": "scGate",
-      "RemoteUsername": "carmonalab",
-      "RemoteRef": "HEAD",
-      "RemoteSha": "f604ac285c11bf646b7c1db3e092fbfe797436e6",
+      "Source": "Bioconductor",
+      "Repository": "CRAN",
       "Requirements": [
         "BiocParallel",
         "R",
@@ -2877,7 +2872,7 @@
         "stats",
         "utils"
       ],
-      "Hash": "5f9cdeae1c6913a684c06225220d22bb"
+      "Hash": "e668c3316e68dc6d2ba0a7dc77b1f813"
     },
     "scales": {
       "Package": "scales",
