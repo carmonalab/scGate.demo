@@ -37,6 +37,8 @@ For simplicity, in this demo we use a reduced version of the dataset by [Hao.et 
 ```{r,warning=F}
 testing.datasets <- scGate::get_testing_data(version = "hsa.latest")
 hao <- testing.datasets$Satija
+
+palette <- c(list("Impure" = "gray", "Pure" = "green"))
 ```
 
 Let's have a look at the cell type annotations provided by the authors
@@ -71,13 +73,14 @@ And we can apply it on the SCT assay (which stores normalized RNA expression cou
 ```{r,collapse=T,warning=F, message=FALSE}
 hao <- scGate(data = hao, model = bcell.sct, assay = "SCT",output.col.name = "Bcell.SCT")
 
-DimPlot(hao, group.by = "Bcell.SCT", cols = c(list("Impure" = "gray", "Pure" = "green"))) + 
+DimPlot(hao, group.by = "Bcell.SCT", cols = palette) + 
   theme(aspect.ratio = 1) + ggtitle("scGate Bcells (SCT assay)")
 ```
 
 The surface protein measurements for key B cell markers CD19 and CD20 (stored in the ADT assay) confirm that scGate could isolate pure B cells from trascriptomics data
 ```{r fig.height=4, fig.width=6}
-VlnPlot(hao,features = c("CD20","CD19"), assay = "ADT",cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0)
+VlnPlot(hao,features = c("CD20","CD19"), assay = "ADT",
+        cols = palette, pt.size = 0)
 ```
 
 We can now perform the complementary experiment: detecting B cells from ADT readouts (and confirming gating purity by RNA-seq expression)
@@ -95,11 +98,11 @@ maxrank <- nrow(hao@assays$ADT)/2
 
 hao <- scGate(data = hao, model = cd20.adt, assay = "ADT",output.col.name = "Bcell.ADT",maxRank = maxrank)  
 
-b1 <- DimPlot(hao, group.by = "Bcell.ADT", cols = c(list("Impure" = "gray", "Pure" = "green"))) + 
+b1 <- DimPlot(hao, group.by = "Bcell.ADT", cols = palette) + 
   theme(aspect.ratio = 1) + ggtitle("scGate Bcells (ADT assay)")
 
 #Verify RNA expression of MS4A1 (encoding CD20) in SCT assay
-b2 <- VlnPlot(hao,features = "MS4A1", assay = "SCT",cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0)
+b2 <- VlnPlot(hao,features = "MS4A1", assay = "SCT",cols = palette, pt.size = 0)
 b1 + b2
 ```
 
@@ -132,12 +135,12 @@ t.sct <- gating_model(model = t.sct, name = "t.sct", signature = c("CD3E","CD3D"
 # Run scGate model on SCT assay
 hao <- scGate(data = hao, model = t.sct, assay = "SCT")
 
-a <- DimPlot(hao, cols = c(list(Impure = "gray", Pure = "green"))) + 
+a <- DimPlot(hao, cols = palette) + 
   theme(aspect.ratio = 1) + ggtitle("scGate Tcells (SCT assay)")
 
 # and check surface protein markers in ADT assay
 b <- VlnPlot(hao,features = c(grep("CD3-[1-2]",row.names(hao@assays$ADT),value = T),"CD41"), 
-             assay = "ADT",cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0, ncol=2) 
+             assay = "ADT",cols = palette, pt.size = 0, ncol=2) 
 
 a | b
 ```
@@ -151,7 +154,7 @@ t.adt <- gating_model(name = "t.adt", signature = c("CD3-1","CD3-2","CD41-"))
 hao <- scGate(data = hao, model = t.adt, assay = "ADT",maxRank = maxrank)
 
 # UMAP plot
-DimPlot(hao, cols = c(list(Impure = "gray", Pure = "green")))  + 
+DimPlot(hao, cols = palette)  + 
   ggtitle("scGate Tcells (ADT assay)") + theme(aspect.ratio=1)
 ```
 
@@ -168,12 +171,12 @@ t.adt <- gating_model(name = "t.adt", signature = c("CD3-1","CD3-2","CD41-"))
 # filtering
 hao <- scGate(data = hao, model = t.adt, assay = "ADT", maxRank = maxrank, pos.thr = 0.05)
 
-a <- DimPlot(hao, cols = c(list(Impure = "gray", Pure = "green"))) + 
+a <- DimPlot(hao, cols = palette) + 
   theme(aspect.ratio = 1) + ggtitle("scGate Tcells (ADT assay)")
 
 # Control markers on SCT assay
 b <- VlnPlot(hao,features = c("CD3E","CD3D","ITGA2B"), assay = "SCT", ncol=2,
-             cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0) 
+             cols = palette, pt.size = 0) 
 a | b
 ```
 
@@ -188,11 +191,11 @@ nk.sct <- gating_model(name = "NK.sct", signature = c("NCAM1","KLRD1","CD3D-"))
 Filter on SCT data
 ```{r warning=F, collapse=TRUE, message=F}
 hao <- scGate(data = hao, model = nk.sct, assay = "SCT",output.col.name = "NK.sct")
-a <- DimPlot(hao, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1) + 
+a <- DimPlot(hao, cols = palette) + theme(aspect.ratio = 1) + 
   ggtitle("scGate NKs (SCT assay)")
 
 b <- VlnPlot(hao,features = c("CD56-1", "CD56-2","CD3-1","CD3-2"), assay = "ADT",
-             cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0,ncol = 2)
+             cols = palette, pt.size = 0,ncol = 2)
 
 a | b
 ```
@@ -209,10 +212,10 @@ nk.adt <- gating_model(model = nk.adt, name = "tcell.adt",signature = c("CD3-1",
 hao <- scGate(data = hao, model = nk.adt, assay = "ADT",maxRank = maxrank,
               pos.thr = 0.4, neg.thr = 0.7, output.col.name = "NK.adt")
 plot_UCell_scores(obj = hao, model = nk.adt, pos.thr = 0.4, neg.thr = 0.7)
-a <- DimPlot(hao, cols = c(list(Impure = "gray", Pure = "green")),group.by = "NK.adt") +
+a <- DimPlot(hao, cols = palette, group.by = "NK.adt") +
   theme(aspect.ratio = 1) + ggtitle("scGate NKs (ADT assay)")
 b <- VlnPlot(hao,features = c("NCAM1","KLRD1","CD3D","CD3G"), assay = "SCT",
-             cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0,ncol = 2)
+             cols = palette, pt.size = 0,ncol = 2)
 
 a | b
 ```
@@ -224,11 +227,12 @@ We start by filtering platelets on the SCT assay
 # model definition
 platelet.sct <- gating_model(name = "platelet.sct", signature = c("ITGA2B"))
 #filtering
-hao <- scGate(data = hao, model = platelet.sct, assay = "SCT",output.col.name = "platelet.sct")
+hao <- scGate(data = hao, model = platelet.sct, assay = "SCT", output.col.name = "platelet.sct")
 # UMAP plot
-a <- DimPlot(hao, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1)  + ggtitle("scGate Platelets (SCT assay)")
+a <- DimPlot(hao, cols = palette) + theme(aspect.ratio = 1) + ggtitle("scGate Platelets (SCT assay)")
 # Control markers in ADT assay
-b <- VlnPlot(hao,features = c("CD41"), assay = "ADT",cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0) + theme(aspect.ratio = 1)
+b <- VlnPlot(hao,features = c("CD41"), assay = "ADT",
+             cols = palette, pt.size = 0) + theme(aspect.ratio = 1)
 
 (a + theme(aspect.ratio=1)) | (b + theme(aspect.ratio=1))
 ```
@@ -246,8 +250,9 @@ hao <- scGate(data = hao, model = platelet.adt, assay = "ADT",maxRank = maxrank,
 ```
 
 ```{r}
-a <- DimPlot(hao, cols = c(list(Impure = "gray", Pure = "green")))  + ggtitle("scGate Platelets (ADT assay)") + theme(aspect.ratio=1)
-b <- VlnPlot(hao,features = c("ITGA2B"), assay = "SCT",cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0) +theme(aspect.ratio=1)
+a <- DimPlot(hao, cols = palette)  + ggtitle("scGate Platelets (ADT assay)") + theme(aspect.ratio=1)
+b <- VlnPlot(hao,features = c("ITGA2B"), assay = "SCT",
+             cols = palette, pt.size = 0) +theme(aspect.ratio=1)
 
 a | b
 ```

@@ -26,21 +26,18 @@ library(ggplot2)
 library(dplyr)
 library(patchwork)
 library(Seurat)
+library(SeuratObject)
+library(remotes)
 
 if (!require("harmony", quietly = TRUE))
-install.packages("harmony")
-
-if (!require("remotes", quietly = TRUE))
-    install.packages("remotes")
+  install.packages("harmony")
 
 #Packages from GitHub
 if (!require("seurat-data", quietly = TRUE))
-    remotes::install_github('satijalab/seurat-data')
+  remotes::install_github('satijalab/seurat-data')
 
-if (!require("harmony", quietly = TRUE))
-install.packages("harmony")
-
-remotes::install_github("carmonalab/STACAS")
+if (!require("STACAS", quietly = TRUE))
+  remotes::install_github("carmonalab/STACAS")
 
 library(scGate)
 library(SeuratData)
@@ -75,9 +72,9 @@ Download the dataset of PBMCs ([SCP424](https://singlecell.broadinstitute.org/si
 
 ```{r}
 options(timeout = max(300, getOption("timeout")))
+
 InstallData("pbmcsca")
 data("pbmcsca")
-
 ```
 
 
@@ -89,7 +86,7 @@ Integrate different batches (in this example, datasets generated with different 
 nfeatures <- 1000 # define number of variable features to consider
 npcs <- 20 # define number of Principal Components for dimensionality reduction
 
-pbmcsca <- NormalizeData(pbmcsca) 
+pbmcsca <- UpdateSeuratObject(pbmcsca) |> NormalizeData() 
 pbmcsca.list <- SplitObject(pbmcsca, split.by = "Method") 
 pbmc.stacas <- Run.STACAS(pbmcsca.list, anchor.features = nfeatures, dims = 1:npcs)
 pbmc.stacas <- RunUMAP(pbmc.stacas, dims = 1:npcs)
@@ -128,7 +125,8 @@ DimPlot(pbmc.stacas, group.by = c("Megakaryocyte","CellType"), ncol = 2) + theme
 We can also run multiple gating models at once. Besides pure/impure classifications for each model, scGate will also return a combined annotation based on all the models we provided. In this setting, scGate can be used as a multi-classifier to automatically annotate datasets:
 ```{r}
 models.hs <- models.db$human$generic
-models.list <- models.hs[c("Bcell","CD4T","CD8T","MoMacDC","Plasma_cell","NK","Erythrocyte","Megakaryocyte")]
+models.list <- models.hs[c("Bcell","PlasmaCell","CD4T","CD8T","Monocyte",
+                           "NK","Erythrocyte","Megakaryocyte","Mast","panDC")]
 
 pbmc.stacas <- scGate(pbmc.stacas, model=models.list, reduction="pca", ncores=4)
 ```
@@ -177,7 +175,8 @@ We can also efficiently run multiple gating models at once, by providing a list 
 models.db <- scGate::get_scGateDB()
 
 models.hs <- models.db$human$generic
-models.list <- models.hs[c("Bcell","CD4T","CD8T","MoMacDC","Plasma_cell","NK","Erythrocyte","Megakaryocyte")]
+models.list <- models.hs[c("Bcell","PlasmaCell","CD4T","CD8T","Monocyte",
+                           "NK","Erythrocyte","Megakaryocyte","Mast","panDC")]
 
 pbmc.harmony <- scGate(pbmc.harmony, model=models.list, reduction="harmony", ncores=4)
 ```

@@ -29,7 +29,7 @@ library(viridis)
 library(Seurat)
 
 #Install scGate
-install.packages("scGate")
+#install.packages("scGate")
 library(scGate)
 ```
 
@@ -61,13 +61,13 @@ opts_knit$set(width=75)
 This helper function retrieves some toy datasets with cell type annotations, useful to test our models:
 ```{r}
 testing.datasets <- scGate::get_testing_data(version = 'hsa.latest')
+palette <- c(list(Impure = "gray", Pure = "green"))
 ```
 
 Let's play with a (downsampled) dataset of PBMCs from Hao et al. 2021 (https://doi.org/10.1016/j.cell.2021.04.048)
 ```{r,collapse =T}
 obj <- testing.datasets[["Satija"]]
 DimPlot(obj, label = T, repel = T, group.by = "celltype.l1") + theme(legend.position = "none", aspect.ratio = 1)
-#ggsave("plots/umap.Hao.celltype.pdf",width = 4, height = 4)
 ```
 
 # Creating a simple gating model
@@ -84,8 +84,7 @@ my_scGate_model
 Run scGate to purify B cells with the simple single-gene model 
 ```{r, collapse=T}
 obj <- scGate(data = obj, model = my_scGate_model, verbose=T)
-DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1)
-#ggsave("plots/umap.Hao.Bcell.pdf",width = 4, height = 4)
+DimPlot(obj, cols = palette) + theme(aspect.ratio = 1)
 ```
 
 Because in this demo example we know the ground truth cell types (at least, as defined by the authors), we can evaluate scGate predictive performance in terms of precision/positive predictive value, recall/sensitivity, and accuracy using Matthews Correlation Coefficient (MCC)
@@ -102,7 +101,7 @@ my_scGate_model
 
 # Run the model
 obj <- scGate(data = obj, model = my_scGate_model)
-DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1)
+DimPlot(obj, cols = palette) + theme(aspect.ratio = 1)
 ```
 
 ```{r}
@@ -118,8 +117,7 @@ scGate::performance.metrics(obj$cell_type=="pDC",obj$is.pure=="Pure")
 my_scGate_model <- gating_model(name = "NK", signature = c("NCAM1+","KLRD1+","CD3D-"))  
 
 obj <- scGate(data = obj, model = my_scGate_model, assay = DefaultAssay(obj))
-DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1) 
-#ggsave("plots/umap.Hao.NK.pdf",width = 4, height = 4)
+DimPlot(obj, cols = palette) + theme(aspect.ratio = 1) 
 ```
 
 
@@ -137,7 +135,6 @@ Let's explore (a downsampled version of) the whole tumor dataset by Jerby-Arnon 
 ```{r,collapse =T}
 obj <- testing.datasets[["JerbyArnon"]]
 DimPlot(obj, label = T, repel = T, group.by = "cell_type") + theme(legend.position = "none", aspect.ratio = 1)
-#ggsave("plots/umap.jerby.celltype.pdf",width = 4, height = 4)
 ```
 
 The dataset comprises non-immune populations such as malignant/cancer cells (Mal), Endothelial cells (Endo) and cancer-associated fibroblasts (CAF).
@@ -146,8 +143,7 @@ We can try to purify first all immune cells, using pan-immune cell marker CD45 (
 ```{r}
 my_scGate_model <- gating_model(name = "immune", signature = c("PTPRC")) 
 obj <- scGate(data = obj, model = my_scGate_model, verbose=T)
-DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1)
-#ggsave("plots/umap.jerby.immune.pdf",width = 4, height = 4)
+DimPlot(obj, cols = palette) + theme(aspect.ratio = 1)
 ```
 
 ```{r}
@@ -166,8 +162,7 @@ my_scGate_model <- gating_model(model = my_scGate_model, name = "macrophage", si
 
 obj <- scGate(data = obj, model = my_scGate_model, save.levels = T)
 
-DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1)
-#ggsave("plots/umap.jerby.macro.pdf",width = 4, height = 4)
+DimPlot(obj, cols = palette) + theme(aspect.ratio = 1)
 ```
 
 ```{r}
@@ -180,7 +175,6 @@ Here we isolated 95% of macrophages with a 90% purity (according to annotation b
 We can always inspect the distribution of UCell scores calculated for each signature. For example:
 ```{r}
 FeaturePlot(obj, features=c("macrophage_UCell")) + scale_color_viridis(option="D") + theme(aspect.ratio = 1)
-#ggsave("plots/umap.jerby.macro.UCell.pdf",width = 4, height = 4)
 ```
 
 
@@ -245,7 +239,7 @@ To visualize complex models in tree-like structures, we provide the `plot_tree()
 The following is a model to purify **plasma (B) cells** with high accuracy:
 ```{r message=F,results=F}
 library(ggparty)
-my_scGate_model <- models.DB$human$generic$Plasma_cell
+my_scGate_model <- models.DB$human$generic$PlasmaCell
 plt.tree <- scGate::plot_tree(my_scGate_model)
 plt.tree
 ```
@@ -264,7 +258,7 @@ DimPlot(obj, group.by = "cell_type",label = T, repel =T,label.size = 3) +
 Run scGate with `save.levels=TRUE` to output per-level results
 ```{r, collapse=T}
 obj <- scGate(obj, model = my_scGate_model, save.levels = TRUE)
-DimPlot(obj, cols = c(list(Impure = "gray", Pure = "green"))) + theme(aspect.ratio = 1) 
+DimPlot(obj, cols = palette) + theme(aspect.ratio = 1) 
 ```
 
 Visualize filtering results by level. We can see how the purity increases at each level.
@@ -285,16 +279,15 @@ scGate can also be used a cell type classifier, to annotate multiple cell types 
 For instance, we can use a list of models from the default scGate DB:
 ```{r}
 models.DB <- scGate::get_scGateDB()
-models.hs <- models.DB$human$generic
 
-models.list <- models.hs[c("Bcell","CD4T","CD8T","MoMacDC","Plasma_cell","NK")]
+models.list <- models.DB$human$TME_HiRes
 ```
 
 Then we can run scGate with this list of models:
 ```{r}
 obj <- testing.datasets[["Zilionis"]]
 
-obj <- scGate(obj, model=models.list)
+obj <- scGate(obj, model=models.list, ncores=4)
 ```
 
 Cells that are unequivocally assigned to only one cell type will be annotated to that cell type; cells that pass the gate of more than one model will be annotated as "Multi"; cells that cannot be gated by any model will be labeled as *NA*. These labels are exported in a new metadata column named  `scGate_multi`:
@@ -305,7 +298,8 @@ table(obj$scGate_multi, useNA="ifany")
 
 
 ```{r,fig.height=5,fig.width=11}
-multi <- DimPlot(obj, group.by="scGate_multi") + theme(aspect.ratio = 1)
+multi <- DimPlot(obj, group.by="scGate_multi", label=T, repel=T, label.size = 2) +
+  theme(aspect.ratio = 1) + ggtitle("scGate annotation") + NoLegend() 
 
 orig <- DimPlot(obj, group.by = "cell_type",label = T, repel =T, label.size = 2) + 
   theme(aspect.ratio = 1) + ggtitle("Original manual annot") + NoLegend() 

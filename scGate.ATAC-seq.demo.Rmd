@@ -151,7 +151,7 @@ pbmc <- NormalizeData(object = pbmc,assay = 'GeneActivity',normalization.method 
 We can visualize Gene Activity counts for some classical immune markers in the UMAP space derived from ATAC counts
 ```{r fig.height=6, fig.width=12}
 DefaultAssay(pbmc) <- 'GeneActivity'
-
+palette <- c(list("Impure" = "gray", "Pure" = "green"))
 feats <- c('LCK','CD3D','KLRD1','SPI1','MS4A1','CD36')
 FeaturePlot(object = pbmc,features = feats ,reduction= "umap.atac",pt.size = 0.1,max.cutoff = 'q95',ncol = 3)
 ```
@@ -216,7 +216,7 @@ Visualize gating results
 ```{r collapse=T}
 # UMAP plot of purified population
 DimPlot(pbmc, group.by = "Bcell.ATAC", reduction= "umap.atac",
-             cols = c(list("Impure" = "gray", "Pure" = "green"))) + ggtitle("scGate B cells on ATAC") + theme(aspect.ratio = 1)
+             cols = palette) + ggtitle("scGate B cells on ATAC") + theme(aspect.ratio = 1)
 ```
 
 How is the MS4A1 gene detected by the RNA-seq assay?
@@ -224,7 +224,7 @@ How is the MS4A1 gene detected by the RNA-seq assay?
 DefaultAssay(pbmc) <- "SCT"
 
 a <- VlnPlot(pbmc,features = c("MS4A1"), assay = "SCT",
-             cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0) 
+             cols = palette, pt.size = 0) 
 
 b <- FeaturePlot(object = pbmc, features = c('MS4A1'), reduction= "umap.atac",pt.size = 0.1,max.cutoff = 'q95') + 
   ggtitle("MS4A1 RNA-seq") + theme(aspect.ratio = 1)
@@ -248,14 +248,14 @@ Visualize results
 ```{r collapse=T}
 # UMAP plot 
 DimPlot(pbmc, group.by = "Tcell.ATAC", reduction= "umap.atac",
-             cols = c(list("Impure" = "gray", "Pure" = "green"))) + ggtitle("scGate T cells on ATAC") + theme(aspect.ratio = 1)
+             cols = palette) + ggtitle("scGate T cells on ATAC") + theme(aspect.ratio = 1)
 ```
 
 We can verify gating quality by RNA expression of key marker genes
 ```{r collapse=T}
 # CD2 and CD3 expression levels
 a <- VlnPlot(pbmc,features = c("CD3E","CD2"), assay = "SCT",
-             cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0)
+             cols = palette, pt.size = 0)
 
 # Feature plot of 
 DefaultAssay(pbmc) <- "SCT"
@@ -287,10 +287,10 @@ We can visualize gating results for each layer of the model
 ```{r collapse=T}
 
 a <- DimPlot(pbmc, group.by = "Monocyte.ATAC.level1", reduction= "umap.atac",
-             cols = c(list("Impure" = "gray", "Pure" = "green"))) + ggtitle("Myeloid cells (ATAC)") + theme(aspect.ratio = 1)
+             cols = palette) + ggtitle("Myeloid cells (ATAC)") + theme(aspect.ratio = 1)
 
 b <- DimPlot(pbmc, group.by = "Monocyte.ATAC", reduction= "umap.atac",
-             cols = c(list("Impure" = "gray", "Pure" = "green"))) + ggtitle("CD14 Monocytes (ATAC)") + theme(aspect.ratio = 1)
+             cols = palette) + ggtitle("CD14 Monocytes (ATAC)") + theme(aspect.ratio = 1)
 
 a | b
 ```
@@ -298,7 +298,7 @@ a | b
 Verify RNA expression of classical markers SPI1 (myeloid lineage) and CD14 (CD14 monocytes)
 ```{r collapse=T}
 a <- VlnPlot(pbmc,features = c("SPI1","CD14"), assay = "SCT",
-             cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0,ncol = 2)
+             cols = palette, pt.size = 0,ncol = 2)
 
 DefaultAssay(pbmc) <- "SCT"
 b <- FeaturePlot(object = pbmc, features = c('SPI1'), reduction= "umap.atac",pt.size = 0.1,max.cutoff = 'q95') + 
@@ -330,12 +330,12 @@ pbmc <- scGate(data =pbmc, model = model, assay = "GeneActivity", output.col.nam
 Visualize the results
 ```{r collapse=T}
 # Layer 1 (lymphoid cells)
-a <- DimPlot(pbmc, group.by = "NK.ATAC.level1", reduction= "umap.atac",
-             cols = c(list("Impure" = "gray", "Pure" = "green"))) + ggtitle("scGate Lymphoid (ATAC)") + theme(aspect.ratio = 1)
+a <- DimPlot(pbmc, group.by = "NK.ATAC.level1", reduction= "umap.atac", cols = palette) +
+  ggtitle("scGate Lymphoid (ATAC)") + theme(aspect.ratio = 1)
 
 # Layer 2 (NK cells)
-b <- DimPlot(pbmc, group.by = "NK.ATAC", reduction= "umap.atac",
-             cols = c(list("Impure" = "gray", "Pure" = "green"))) + ggtitle("scGate NKs (ATAC)") + theme(aspect.ratio = 1)
+b <- DimPlot(pbmc, group.by = "NK.ATAC", reduction= "umap.atac", cols = palette) +
+  ggtitle("scGate NKs (ATAC)") + theme(aspect.ratio = 1)
 
 a | b
 ```
@@ -343,7 +343,7 @@ a | b
 Verify RNA expression of NK markers (KLRD1 and NCAM1) in pure/impure populations
 ```{r fig.height= 6, fig.width=9}
 b <- VlnPlot(pbmc,features = c("KLRD1","NCAM1","CD3D"), assay = "SCT",
-             cols = c(list("Impure" = "gray", "Pure" = "green")),pt.size = 0, ncol=3)
+             cols = palette, pt.size = 0, ncol=3)
 
 DefaultAssay(pbmc) <- "SCT"
 pll <- FeaturePlot(object = pbmc, features = c('KLRD1',"CD3D"), reduction= "umap.atac",pt.size = 0.1,max.cutoff = 'q95', combine = F)
