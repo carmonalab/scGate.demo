@@ -1,0 +1,81 @@
+---
+title: "scGate as a multi-class cell type classifier"
+author: "M. Andreatta"
+date: "18/01/2024"
+output:
+  rmdformats::readthedown:
+    self-contained: true
+    highlight: haddock
+    thumbnails: false
+    css: styles.css
+knit: (function(input_file, encoding) {
+  out_dir <- 'docs';
+  rmarkdown::render(input_file, encoding=encoding,
+ output_file=file.path(dirname(input_file), out_dir, 'scGate.multiPBMC.html'))})
+---
+
+# Introduction
+
+The CITE-seq dataset by [Hao.et al. 2021](https://doi.org/10.1016/j.cell.2021.04.048) characterizes human PBMCs with scRNA-seq paired with antibody-derived tags (ADT) for a panel of >200 antibodies. This demo illustrates how the [scGate package](https://github.com/carmonalab/scGate) can be applied to isolate target cell type populations from blood.....
+
+```{r, message=F, warning=F,results=F}
+renv::restore()
+library(ggplot2)
+library(dplyr)
+library(Seurat)
+library(UCell)
+library(scGate)
+library(viridis)
+library(patchwork)
+library(RColorBrewer)
+```
+
+Download a downsampled version of the PBMC dataset
+```{r}
+ddir <- "input"
+data.path <- sprintf("%s/pbmc_multimodal.downsampled20k.seurat.rds", ddir)
+
+if (!file.exists(data.path)) {
+    dir.create(ddir)
+    dataUrl <- "https://www.dropbox.com/s/akzu3hp4uz2mpkv/pbmc_multimodal.downsampled20k.seurat.rds?dl=1"
+    download.file(dataUrl, data.path)
+}
+
+seu <- readRDS(data.path)
+```
+
+Get prediction model for PBMC
+```{r}
+models.DB <- scGate::get_scGateDB(destination = ".")
+
+pbmc.predictor <- models.DB$human$PBMC
+```
+Apply prediction model to query dataset
+```{r}
+seu <- scGate(seu, model = pbmc.predictor, ncores = 8)
+```
+View results
+```{r}
+palette <- c(brewer.pal(12,"Paired"), brewer.pal(12, "Set3"), brewer.pal(8, "Set2"))
+
+DimPlot(seu, reduction = "wnn.umap", group.by = "scGate_multi", label=T, cols = palette) + theme(aspect.ratio = 1)
+DimPlot(seu, reduction = "wnn.umap", group.by = "celltype.l1", label=T, cols = palette) + theme(aspect.ratio = 1)
+DimPlot(seu, reduction = "wnn.umap", group.by = "celltype.l2", label=T, cols = palette) + NoLegend() + theme(aspect.ratio = 1)
+```
+
+```{r fig.height=7}
+FeaturePlot(seu, reduction = "wnn.umap",  features = c("TRGC1","TRGC2","TRDC","TRDV1","TRAC","TRDV3"), ncol=3) &
+  theme(aspect.ratio = 1)
+FeaturePlot(seu, reduction = "wnn.umap",  features = c("SMIM24","CD34","ITGA2B","PPBP","PF4"), ncol=3) &
+  theme(aspect.ratio = 1)
+```
+
+```{r fig.height=15}
+uscores <- grep("_UCell", colnames(seu[[]]), value=T)
+
+sub <- subset(seu, subset=celltype.l2 == "Platelet")
+
+VlnPlot(sub, features = uscores, pt.size=0, ncol=7) &
+  theme(aspect.ratio = 1)
+```
+
