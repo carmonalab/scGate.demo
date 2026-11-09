@@ -8,3 +8,7 @@ renv/
 docs/scGate.basic.usage_files/
 scGate.demo_cache/
 scGateDB/
+*_cache/
+scGate_models-*/
+*.rds
+data/

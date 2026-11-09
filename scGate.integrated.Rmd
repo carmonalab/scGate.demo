@@ -33,7 +33,7 @@ if (!require("harmony", quietly = TRUE))
   install.packages("harmony")
 
 #Packages from GitHub
-if (!require("seurat-data", quietly = TRUE))
+if (!require("SeuratData", quietly = TRUE))
   remotes::install_github('satijalab/seurat-data')
 
 if (!require("STACAS", quietly = TRUE))

@@ -1,0 +1,195 @@
+---
+title: "Purifying MAIT cells with scGate"
+author: "S. Carmona"
+date: "06/11/2026"
+output:
+  rmdformats::readthedown:
+    self-contained: true
+    highlight: haddock
+    thumbnails: false
+    css: styles.css
+knit: (function(input_file, encoding) {
+  out_dir <- 'docs';
+  rmarkdown::render(input_file, encoding=encoding,
+ output_file=file.path(dirname(input_file), out_dir, 'scGate.MAIT.html'))})
+---
+
+# Introduction
+
+Mucosal-associated invariant T (MAIT) cells are innate-like T cells that carry a semi-invariant TCR and recognize microbial riboflavin metabolites presented by MR1. They are abundant in blood, liver and mucosal tissues. By flow cytometry, MAIT cells are usually identified as Vα7.2^+^ CD161^hi^ T cells, or with MR1–5-OP-RU tetramers. They also express high levels of IL-18Rα and CCR6 (Dusseaux et al. 2011). At the transcriptional level, they share a characteristic signature that includes KLRB1, SLC4A10, IL18RAP and CCR6 (Garner et al. 2023), part of which is also expressed by γδ T cells and NK cells.
+
+This demo shows how to apply the generic human **MAIT** gating model from the [scGate models repository](https://github.com/carmonalab/scGate_models) to isolate MAIT cells from a single-cell dataset, using the [scGate package](https://github.com/carmonalab/scGate).
+
+We use the CITE-seq PBMC dataset by [Hao et al. 2021](https://doi.org/10.1016/j.cell.2021.04.048), whose author annotation includes a MAIT population that we can use as ground truth.
+
+# Setting up the environment
+
+```{r, message=F, warning=F, results=F}
+library(ggplot2)
+library(dplyr)
+library(Seurat)
+library(UCell)
+library(scGate)
+library(viridis)
+library(patchwork)
+```
+
+```{r setup, echo=FALSE, message=F, warning=F, results=F}
+library(knitr)
+library(rmdformats)
+
+options(max.print="75")
+opts_chunk$set(echo=TRUE,
+               cache=TRUE,
+               cache.lazy=FALSE,
+               prompt=FALSE,
+               comment=NA,
+               message=FALSE,
+               warning=FALSE,
+               dev='png')
+opts_knit$set(width=75)
+```
+
+# Loading the PBMC dataset
+
+We use a downsampled version (2k cells) of the Hao et al. dataset, distributed with scGate's testing data. The dataset was downsampled to roughly 100 cells per annotated cell type, so MAIT cells (a few percent of PBMCs in vivo) are over-represented here; the same code can be applied to the complete dataset.
+The file is cached in `input/testing.data/`. If the automatic download fails, download https://figshare.com/ndownloader/files/56482271 with a web browser and save it as `input/testing.data/testing.dataset.2k.rds`.
+```{r}
+testing.datasets <- scGate::get_testing_data(version = "hsa.latest", destination = "input")
+seu <- testing.datasets$Satija
+DefaultAssay(seu) <- "SCT"
+```
+
+Original annotation by the authors (level 2). MAIT cells sit close to CD8 effector/memory T cells.
+```{r, fig.height=6, fig.width=8}
+DimPlot(seu, reduction = "umap", group.by = "cell_type", label = T, repel = T, label.size = 3) +
+  NoLegend() + theme(aspect.ratio = 1)
+
+table(seu$cell_type == "MAIT")
+```
+
+# The generic human MAIT model
+
+Retrieve the latest version of the scGate models DB. We set `force_update = TRUE` to make sure a cached older copy (without the MAIT model) is not reused.
+```{r}
+models.DB <- scGate::get_scGateDB(destination = ".", force_update = TRUE)
+
+mait.model <- models.DB$human$generic$MAIT
+mait.model
+```
+
+The model has two levels:
+
+* **Level 1** - keeps T cells (including MAIT-like cells), removing epithelial, stromal, endothelial, B, myeloid and plasma cells. This makes the model usable on whole-tissue samples.
+* **Level 2** - keeps cells with high scores for the MAIT signature (*SLC4A10*, *TRAV1-2*, *KLRB1*, *IL18RAP*, *CCR6*), removing gamma-delta T cells and NK cells, which share part of this innate-like program (e.g. *KLRB1*, *IL18RAP*).
+
+
+```{r message=F, results=F, fig.width=8, fig.height=5}
+library(ggparty)
+scGate::plot_tree(mait.model)
+```
+
+Expression of the MAIT signature genes:
+```{r, fig.height=7, fig.width=10}
+FeaturePlot(seu, reduction = "umap", features = c("SLC4A10","TRAV1-2","KLRB1","IL18RAP","CCR6","TRDC"),
+            ncol = 3, order = T) &
+  scale_color_viridis(option = "B") & theme(aspect.ratio = 1)
+```
+
+# Running scGate
+
+As recommended in the scGate models repository, we run this model with `param_decay = 0`. By default, scGate shrinks the kNN neighbourhood and the number of genes used for dimensionality reduction at each level; for a rare population like MAIT cells, this tends to blur them into other memory T cells.
+
+```{r}
+seu <- scGate(seu, model = mait.model, param_decay = 0, save.levels = TRUE, ncores = 4)
+```
+
+```{r}
+table(seu$is.pure)
+```
+
+```{r, fig.height=5, fig.width=11}
+palette <- c(list(Impure = "gray", Pure = "green"))
+
+p1 <- DimPlot(seu, reduction = "umap", group.by = "is.pure", cols = palette) +
+  theme(aspect.ratio = 1) + ggtitle("scGate MAIT")
+
+seu$MAIT.annot <- ifelse(seu$cell_type == "MAIT", "MAIT", "other")
+p2 <- DimPlot(seu, reduction = "umap", group.by = "MAIT.annot", cols = c(MAIT = "red", other = "gray"),
+              order = "MAIT") + theme(aspect.ratio = 1) + ggtitle("Author annotation")
+
+p1 | p2
+```
+
+Gating results at each level of the model
+```{r, fig.height=5, fig.width=11}
+wrap_plots(scGate::plot_levels(seu), ncol = 2)
+```
+
+UCell scores for the MAIT signature
+```{r, fig.height=5, fig.width=6}
+FeaturePlot(seu, reduction = "umap", features = "MAIT_UCell", order = T) +
+  scale_color_viridis(option = "D") + theme(aspect.ratio = 1)
+```
+
+# Evaluating performance
+
+Compare scGate predictions to the author annotation in terms of precision, recall and Matthews correlation coefficient (MCC):
+```{r}
+scGate::performance.metrics(actual = seu$cell_type == "MAIT", pred = seu$is.pure == "Pure")
+```
+
+Which author-annotated cell types are labeled as MAIT by scGate?
+```{r}
+seu@meta.data |>
+  filter(is.pure == "Pure") |>
+  count(cell_type, sort = TRUE)
+```
+
+And where do the author-annotated MAIT cells missed by scGate end up?
+```{r}
+seu@meta.data |>
+  filter(cell_type == "MAIT", is.pure != "Pure") |>
+  count(is.pure.level1, is.pure.level2)
+```
+
+# Protein-level validation
+
+The CITE-seq panel includes antibodies for CD161 (*KLRB1*) and for the TCR Vα7.2 chain (encoded by *TRAV1-2*), the canonical surface markers used to identify MAIT cells by flow cytometry. We can check that cells gated by scGate on RNA alone are CD161^high^ Vα7.2^+^ at the protein level.
+
+```{r, fig.height=5, fig.width=10}
+adt.feats <- grep("CD161|Va7|7\\.2", rownames(seu[["ADT"]]), value = TRUE)
+adt.feats
+
+VlnPlot(seu, assay = "ADT", features = adt.feats, group.by = "is.pure", cols = c("gray", "green"), pt.size = 0) &
+  theme(aspect.ratio = 1)
+```
+
+```{r, fig.height=5, fig.width=6}
+if (length(adt.feats) == 2) {
+  adt <- FetchData(seu, vars = c(paste0("adt_", adt.feats), "is.pure"))
+  colnames(adt) <- c("x", "y", "is.pure")
+  ggplot(adt, aes(x = x, y = y, color = is.pure)) +
+    geom_point(data = subset(adt, is.pure == "Impure"), size = 0.3, alpha = 0.3) +
+    geom_point(data = subset(adt, is.pure == "Pure"), size = 0.5) +
+    scale_color_manual(values = palette) +
+    labs(x = adt.feats[1], y = adt.feats[2]) +
+    theme_bw() + theme(aspect.ratio = 1)
+}
+```
+
+# Further reading
+
+The scGate package and installation instructions are available at: [scGate package](https://github.com/carmonalab/scGate)
+
+The code for this demo can be found on [GitHub](https://github.com/carmonalab/scGate.demo)
+
+The repository for scGate gating models is at: [scGate models repository](https://github.com/carmonalab/scGate_models)
+
+# References
+
+* Hao, Y., Hao, S., Andersen-Nissen, E., Mauck III, W. M., Zheng, S., Butler, A., ... & Satija, R. (2021). *Integrated analysis of multimodal single-cell data*. Cell.
+
+* Andreatta, M., Berenstein, A. J., & Carmona, S. J. (2022). *scGate: marker-based purification of cell types from heterogeneous single-cell RNA-seq datasets*. Bioinformatics, 38(9), 2642-2644.
+
+* Godfrey, D. I., Koay, H. F., McCluskey, J., & Gherardin, N. A. (2019). *The biology and functional importance of MAIT cells*. Nature Immunology, 20(9), 1110-1128.

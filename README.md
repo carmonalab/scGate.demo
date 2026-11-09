@@ -20,6 +20,8 @@ We will be posting here several demos for scGate usage in different scenarios:
 
 4. scGate to annotate scRNA-seq datasets integrated with **Harmony** and **STACAS** - [scGate integrated](https://carmonalab.github.io/scGate.demo/scGate.integrated.html)
 
+5. Purifying **MAIT cells** with the generic human MAIT model from the scGate models DB - [scGate MAIT](https://carmonalab.github.io/scGate.demo/scGate.MAIT.html)
+
 ## Clone the repository
 
 To access the raw code and run these demos on your machine, you may also clone the repository:
