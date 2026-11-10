@@ -45,8 +45,10 @@ library(stringr)
 library(patchwork)
 
 library(Seurat)
+library(hdf5r)  # required by Read10X_h5()
 library(biovizBase)
 library(Signac)
+library(GenomeInfoDb)  # standardChromosomes(), seqlevelsStyle(); no longer attached by GenomicRanges since Bioconductor 3.22
 library(EnsDb.Hsapiens.v86)
 ```
 
